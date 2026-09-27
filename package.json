@@ -1,0 +1,42 @@
+{
+  "name": "projqik",
+  "version": "3.0.0",
+  "description": "Instant access to the files, folders, apps, and links for each of your projects — by Freedom Forge AI.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac --publish=never"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.1"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.projqik.desktop",
+    "productName": "ProjQik",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "target": [
+        { "target": "zip", "arch": ["x64"] },
+        { "target": "zip", "arch": ["arm64"] }
+      ]
+    }
+  }
+}

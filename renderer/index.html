@@ -1,0 +1,3017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProjQik</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: pqasset:; connect-src 'self' pqasset:;">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#141922;
+    --panel:#1B212C;
+    --panel-raised:#232B38;
+    --border:#33404F;
+    --border-soft:#293440;
+    --text:#E7ECF2;
+    --text-muted:#8FA0B3;
+    --accent-h:36;
+    --accent-s:76%;
+    --accent-l:57%;
+    --accent:hsl(var(--accent-h), var(--accent-s), var(--accent-l));
+    --accent-soft:hsla(var(--accent-h), var(--accent-s), var(--accent-l), .16);
+    --accent-active:#6FAE7A;
+    --danger:#D9694F;
+    --theme-rgb:232,163,61; /* overridden per project to tint the panel + its switch LED */
+    --font-display:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    --font-body:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* ---------- alternate app-wide color schemes ---------- */
+  html[data-app-theme="graphite"]{
+    /* "Graphite" = a genuinely vivid royal-blue identity, not just a dark-navy variant of Slate. */
+    --bg:#0B2A5C; --panel:#0F3373; --panel-raised:#164A99; --border:#2E6FC4; --border-soft:#1D5AA8;
+    --text:#FFFFFF; --text-muted:#AFCBFF;
+    --accent-h:213; --accent-s:100%; --accent-l:64%;
+  }
+  html[data-app-theme="slate"]{
+    --bg:#141922; --panel:#1B212C; --panel-raised:#232B38; --border:#33404F; --border-soft:#293440;
+    --text:#E7ECF2; --text-muted:#8FA0B3;
+    --accent-h:36; --accent-s:76%; --accent-l:57%;
+  }
+  html[data-app-theme="paper"]{
+    --bg:#F3F0E8; --panel:#FFFFFF; --panel-raised:#F1EDE3; --border:#DCD5C4; --border-soft:#E9E4D6;
+    --text:#27251E; --text-muted:#75705F;
+    --accent-h:36; --accent-s:76%; --accent-l:47%;
+  }
+  html[data-app-theme="paper"] .tile__path,
+  html[data-app-theme="paper"] .switch__count,
+  html[data-app-theme="paper"] .preview-path{ color:var(--text-muted); }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{ color:inherit; }
+  button{ font-family:inherit; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+
+  /* ---------- shell / skeleton (loading state) ---------- */
+  #skeleton{
+    display:flex; min-height:100vh;
+  }
+  #skeleton .rail-sk{ width:220px; background:var(--panel); border-right:1px solid var(--border); padding:24px 16px; display:flex; flex-direction:column; gap:10px; }
+  #skeleton .bar{ height:44px; border-radius:10px; background:var(--panel-raised); }
+  #skeleton .main-sk{ flex:1; padding:28px 32px; }
+  #skeleton .main-sk .bar{ width:220px; height:28px; margin-bottom:24px; }
+  #skeleton .grid-sk{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; }
+  #skeleton .tile-sk{ height:96px; border-radius:12px; background:var(--panel-raised); }
+  .pulse{ animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:.55; } 50%{ opacity:.9; } }
+
+  #app{ display:none; }
+  #app.ready{ display:flex; }
+
+  .app-shell{ width:100%; min-height:100vh; display:flex; }
+
+  /* ---------- switch rail ---------- */
+  .switch-rail{
+    width:var(--rail-width, 260px); flex-shrink:0; height:100vh; background:var(--panel); border-right:1px solid var(--border);
+    padding:24px 16px; display:flex; flex-direction:column; gap:10px; position:relative;
+  }
+  .rail-resize-handle{
+    position:absolute; top:0; right:-3px; width:6px; height:100%; cursor:col-resize; z-index:5;
+    background:transparent; transition:background .12s ease;
+  }
+  .rail-resize-handle:hover, .rail-resize-handle.is-resizing{ background:rgba(var(--theme-rgb), .35); }
+  .brand-mark{
+    display:flex; align-items:center; gap:10px; margin:0 0 18px 4px;
+  }
+  .brand-mark__logo{ width:36px; height:36px; flex-shrink:0; object-fit:contain; }
+  .brand-mark__text-group{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+  .brand-mark__text{
+    font-family:var(--font-display); font-weight:700; font-size:18px; letter-spacing:.005em;
+    color:var(--text); line-height:1.15;
+  }
+  .brand-mark__subtext{
+    font-family:var(--font-body); font-weight:400; font-size:10.5px; color:var(--text-muted);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* ---------- global search ---------- */
+  .search-box{ position:relative; margin-bottom:16px; }
+  .search-box__icon{
+    position:absolute; left:11px; top:50%; transform:translateY(-50%); width:15px; height:15px;
+    color:var(--text-muted); pointer-events:none;
+  }
+  .search-box__input{
+    all:unset; box-sizing:border-box; width:100%; background:var(--panel-raised); border:1px solid var(--border);
+    border-radius:9px; padding:9px 32px 9px 32px; font-family:var(--font-body); font-size:13px; color:var(--text);
+  }
+  .search-box__input:focus{ border-color:var(--accent); }
+  .search-box__input::placeholder{ color:var(--text-muted); }
+  .search-box__clear{
+    all:unset; position:absolute; right:8px; top:50%; transform:translateY(-50%); cursor:pointer;
+    width:18px; height:18px; display:flex; align-items:center; justify-content:center; color:var(--text-muted);
+  }
+  .search-box__clear:hover{ color:var(--text); }
+  .search-box__clear svg{ width:13px; height:13px; }
+  .search-results{
+    position:absolute; top:calc(100% + 6px); left:0; right:-1px; z-index:25; max-height:360px; overflow-y:auto;
+    background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px -8px rgba(0,0,0,.5);
+    padding:6px;
+  }
+  .search-result{
+    all:unset; box-sizing:border-box; display:flex; align-items:center; gap:9px; width:100%; padding:8px;
+    border-radius:7px; cursor:pointer;
+  }
+  .search-result:hover, .search-result.is-active{ background:var(--panel-raised); }
+  .search-result__icon{
+    width:26px; height:26px; border-radius:6px; flex-shrink:0; overflow:hidden; display:flex;
+    align-items:center; justify-content:center; color:rgb(var(--theme-rgb));
+  }
+  .search-result__icon img{ width:100%; height:100%; object-fit:cover; }
+  .search-result__icon svg{ width:100%; height:100%; }
+  .search-result__text{ min-width:0; flex:1; }
+  .search-result__label{ font-family:var(--font-body); font-weight:600; font-size:13px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .search-result__meta{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .search-result__project{
+    flex-shrink:0; font-family:var(--font-mono); font-size:10px; color:var(--text-muted); display:flex; align-items:center; gap:5px;
+  }
+  .search-result__dot{ width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .search-empty{ padding:14px 10px; text-align:center; font-size:12.5px; color:var(--text-muted); }
+
+  /* ---------- desktop drag-and-drop overlay ---------- */
+  .drop-overlay{
+    display:none; position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.45);
+    align-items:center; justify-content:center; pointer-events:none;
+  }
+  .drop-overlay.show{ display:flex; }
+  .drop-overlay__card{
+    background:var(--panel); border:2px dashed rgb(var(--theme-rgb)); border-radius:16px; padding:36px 48px;
+    text-align:center; color:var(--text);
+  }
+  .drop-overlay__card svg{ width:36px; height:36px; color:rgb(var(--theme-rgb)); margin-bottom:10px; }
+  .drop-overlay__card p{ margin:0; font-size:15px; }
+
+  .rail-title{
+    font-family:var(--font-display); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--text-muted); margin:0 0 4px 4px;
+  }
+  .add-project-btn{
+    all:unset; cursor:pointer; display:flex; align-items:center; gap:8px; padding:10px 12px;
+    border:1px dashed var(--border); border-radius:10px; color:var(--text-muted);
+    font-family:var(--font-body); font-size:12.5px; margin-bottom:2px; transition:border-color .12s ease, color .12s ease;
+  }
+  .add-project-btn svg{ width:14px; height:14px; flex-shrink:0; }
+  .add-project-btn:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
+  .add-project-btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .switch-list{
+    flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
+    margin:0 -4px; padding:0 4px; /* room for the drag-over outline without clipping */
+  }
+  .switch{
+    all:unset; cursor:pointer; display:flex; align-items:center; gap:10px; padding:12px 14px;
+    border-radius:10px; border:1px solid var(--border); background:var(--panel-raised);
+    transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  .switch:hover{ border-color:var(--accent); }
+  .switch:active{ filter:brightness(.95); }
+  .switch.is-active{
+    border-color:var(--accent);
+    box-shadow:0 0 0 1px var(--accent-soft) inset, 0 0 18px -6px var(--accent);
+  }
+  @keyframes dragOverPulse{
+    0%, 100%{ box-shadow:inset 0 0 0 2px var(--accent), 0 0 0 0 rgba(var(--theme-rgb),.35); }
+    50%{ box-shadow:inset 0 0 0 3px var(--accent), 0 0 0 6px rgba(var(--theme-rgb),0); }
+  }
+  .switch.is-dragging{
+    opacity:.4; border-style:dashed; border-color:var(--accent);
+    transform:scale(.97); box-shadow:0 8px 20px -6px rgba(0,0,0,.5);
+  }
+  .switch.drag-over{ background:var(--accent-soft); animation:dragOverPulse 1s ease-in-out infinite; }
+  .switch.drag-over-tile{ background:rgba(var(--theme-rgb),.18); animation:dragOverPulse 1s ease-in-out infinite; }
+  .switch__grip{
+    width:12px; height:16px; flex-shrink:0; color:var(--text-muted); cursor:grab; opacity:.5;
+    -webkit-user-drag:element; -webkit-user-select:none; user-select:none;
+  }
+  .switch__grip:active{ cursor:grabbing; }
+  .switch:hover .switch__grip{ opacity:.9; }
+  .switch__led{
+    width:8px; height:8px; border-radius:50%; background:#4B4D46; flex-shrink:0;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.3);
+    transition:background .12s ease, box-shadow .12s ease;
+  }
+  .switch.is-active .switch__led{ background:var(--accent-active); box-shadow:0 0 8px 2px rgba(111,174,122,.65); }
+  .switch__label{ font-family:var(--font-display); font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .switch__count{ margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--text-muted); flex-shrink:0; }
+  .switch__merge{
+    all:unset; cursor:pointer; width:16px; height:16px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    color:var(--text-muted); opacity:0; transition:opacity .12s ease; margin-left:6px;
+  }
+  .switch:hover .switch__merge, .switch:focus-within .switch__merge{ opacity:.65; }
+  .switch__merge:hover{ opacity:1 !important; color:rgb(var(--theme-rgb)); }
+  .switch__merge svg{ width:13px; height:13px; }
+  .switch__archive{
+    all:unset; cursor:pointer; width:16px; height:16px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    color:var(--text-muted); opacity:0; transition:opacity .12s ease; margin-left:6px;
+  }
+  .switch:hover .switch__archive, .switch:focus-within .switch__archive{ opacity:.65; }
+  .switch__archive:hover{ opacity:1 !important; color:rgb(var(--theme-rgb)); }
+  .switch__archive svg{ width:13px; height:13px; }
+  .switch__delete{
+    all:unset; cursor:pointer; width:16px; height:16px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    color:var(--text-muted); opacity:0; transition:opacity .12s ease; margin-left:5px;
+  }
+  .switch:hover .switch__delete, .switch:focus-within .switch__delete{ opacity:.65; }
+  .switch__delete:hover{ opacity:1 !important; color:var(--danger); }
+  .switch__delete svg{ width:13px; height:13px; }
+
+  .rail-footer{ flex-shrink:0; display:flex; flex-direction:column; gap:8px; padding-top:16px; }
+  .rail-utility-row{ display:flex; justify-content:center; gap:8px; padding-top:4px; }
+  .rail-utility-btn{
+    all:unset; cursor:pointer; width:30px; height:30px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel-raised); color:var(--text-muted); display:flex; align-items:center; justify-content:center;
+  }
+  .rail-utility-btn:hover{ color:var(--text); border-color:rgb(var(--theme-rgb)); }
+  .rail-utility-btn svg{ width:14px; height:14px; }
+  .rail-version{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); text-align:center; padding-top:4px; user-select:text; opacity:.6; }
+  .theme-row{ display:flex; gap:8px; padding:4px 2px 10px; }
+  .theme-swatch{
+    all:unset; cursor:pointer; width:20px; height:20px; border-radius:50%; border:2px solid var(--border);
+    flex-shrink:0; transition:border-color .12s ease, transform .12s ease;
+  }
+  .theme-swatch:hover{ transform:scale(1.08); }
+  .theme-swatch.is-active{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .ghost-btn{
+    all:unset; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:12px;
+    color:var(--text-muted); padding:8px 10px; border-radius:8px; border:1px solid transparent;
+  }
+  .ghost-btn:hover{ color:var(--text); background:var(--panel-raised); border-color:var(--border); }
+  .ghost-btn svg{ width:14px; height:14px; flex-shrink:0; }
+
+  /* ---------- main ---------- */
+  .main{
+    flex:1; min-width:0; padding:28px 210px 60px 32px;
+    background:
+      radial-gradient(720px circle at 8% -12%, rgba(var(--theme-rgb), .16), transparent 55%),
+      radial-gradient(560px circle at 104% 108%, rgba(var(--theme-rgb), .07), transparent 60%),
+      var(--bg);
+  }
+
+  .storage-banner{
+    display:none; align-items:center; gap:10px; background:rgba(217,105,79,.12);
+    border:1px solid rgba(217,105,79,.4); color:#F0B5A4; padding:10px 14px; border-radius:10px;
+    font-size:13px; margin-bottom:18px;
+  }
+  .storage-banner.show{ display:flex; }
+  .storage-banner svg{ width:16px; height:16px; flex-shrink:0; }
+
+  .main-header{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:22px; }
+  .project-name{
+    font-family:var(--font-display); font-size:24px; font-weight:700; background:none; border:none;
+    color:var(--text); padding:2px 6px; border-radius:6px; border:1px solid transparent; min-width:80px;
+  }
+  .project-name:hover{ border-color:var(--border); }
+  .project-name:focus{ border-color:var(--accent); outline:none; background:var(--panel-raised); }
+
+  .project-profile-picker{
+    display:inline-flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--border);
+    border-radius:8px; padding:5px 10px 5px 8px;
+  }
+  .project-profile-picker__dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; background:var(--text-muted); }
+  .project-profile-picker__select{
+    all:unset; font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted); cursor:pointer; max-width:230px;
+  }
+
+  .header-icon-btn{
+    all:unset; cursor:pointer; width:34px; height:34px; border-radius:9px; border:1px solid var(--border);
+    background:var(--panel); display:flex; align-items:center; justify-content:center; color:rgb(var(--theme-rgb));
+    flex-shrink:0; box-shadow:0 2px 10px -4px rgba(0,0,0,.4); box-sizing:border-box;
+  }
+  .header-icon-btn:hover{ border-color:rgb(var(--theme-rgb)); }
+  .header-icon-btn svg{ width:16px; height:16px; }
+
+  .position-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; width:132px; }
+  .position-grid button{
+    all:unset; cursor:pointer; width:40px; height:40px; border:1px solid var(--border); border-radius:6px;
+    background:var(--panel-raised); display:flex; align-items:center; justify-content:center;
+  }
+  .position-grid button:hover{ border-color:var(--accent); }
+  .position-grid button.is-active{ border-color:var(--accent); background:var(--accent-soft); }
+  .position-grid button .dot{ width:6px; height:6px; border-radius:50%; background:var(--text-muted); }
+  .position-grid button.is-active .dot{ background:var(--accent); }
+
+  .darkness-row{ display:flex; align-items:center; gap:10px; }
+  .darkness-row input[type=range]{ flex:1; accent-color:var(--accent); }
+  .darkness-value{ font-family:var(--font-mono); font-size:12px; color:var(--text-muted); width:38px; text-align:right; flex-shrink:0; }
+
+  .top-right-cluster{
+    position:fixed; top:20px; right:24px; z-index:30;
+    display:flex; align-items:center; gap:8px;
+  }
+  .settings-gear-btn{
+    all:unset;
+    cursor:pointer; width:38px; height:38px; border-radius:10px;
+    border:1px solid var(--border); background:var(--panel); color:var(--text-muted);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px -4px rgba(0,0,0,.4);
+    box-sizing:border-box; flex-shrink:0;
+  }
+  .settings-gear-btn:hover{ color:var(--text); border-color:var(--accent); }
+  .settings-gear-btn svg{ width:18px; height:18px; }
+
+  .settings-modal{ max-width:420px; max-height:85vh; overflow-y:auto; }
+  .settings-header{ display:flex; align-items:center; justify-content:space-between; }
+  .settings-header h2{ margin:0; }
+  .settings-section{ display:flex; flex-direction:column; gap:8px; padding-top:16px; border-top:1px solid var(--border-soft); }
+  .settings-section:first-of-type{ border-top:none; padding-top:0; }
+  .settings-label{ font-family:var(--font-mono); font-size:12px; color:var(--text-muted); }
+  .settings-hint{ font-size:12px; color:var(--text-muted); line-height:1.5; margin:0; }
+  .settings-backup-row{ display:flex; gap:8px; }
+  .settings-backup-row .secondary-btn{ flex:1; text-align:center; }
+
+  .chrome-profiles-list{ display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; margin-top:4px; }
+  .chrome-profile-item{
+    display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:8px;
+    background:var(--panel-raised); border:1px solid var(--border);
+  }
+  .chrome-profile-item__swatch{
+    all:unset; cursor:pointer; width:18px; height:18px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,.25);
+  }
+  .chrome-profile-item__info{ flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .chrome-profile-item__name{
+    all:unset; box-sizing:border-box; width:100%; font-size:13px; color:var(--text); background:transparent;
+    border-bottom:1px solid transparent; padding:1px 0;
+  }
+  .chrome-profile-item__name:focus{ border-bottom-color:var(--accent); }
+  .chrome-profile-item__email{ font-family:var(--font-mono); font-size:10px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chrome-profile-item__test{
+    all:unset; cursor:pointer; flex-shrink:0; font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted);
+    padding:4px 8px; border-radius:6px; border:1px solid var(--border);
+  }
+  .chrome-profile-item__test:hover{ color:var(--text); border-color:var(--accent); }
+  .chrome-profile-item__remove{
+    all:unset; cursor:pointer; flex-shrink:0; width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+    color:var(--text-muted); border-radius:6px;
+  }
+  .chrome-profile-item__remove:hover{ color:var(--danger); background:rgba(217,105,79,.12); }
+  .chrome-profile-item__remove svg{ width:12px; height:12px; }
+  .chrome-profiles-empty{ font-size:12px; color:var(--text-muted); margin-top:4px; }
+
+  .archived-list{ display:flex; flex-direction:column; gap:6px; max-height:160px; overflow-y:auto; }
+  .archived-item{
+    display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px;
+    background:var(--panel-raised); border:1px solid var(--border);
+  }
+  .archived-item__name{ flex:1; font-size:13px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .archived-item__count{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); flex-shrink:0; }
+  .archived-item__restore{
+    all:unset; cursor:pointer; font-family:var(--font-mono); font-size:11px; color:rgb(var(--theme-rgb));
+    padding:4px 9px; border-radius:6px; border:1px solid var(--border); flex-shrink:0;
+  }
+  .archived-item__restore:hover{ border-color:rgb(var(--theme-rgb)); }
+  .archived-empty{ font-size:12px; color:var(--text-muted); }
+
+  .primary-btn{
+    all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--font-body); font-weight:600; font-size:13px; color:#1B1C19;
+    background:var(--accent); padding:9px 16px; border-radius:9px; margin-left:auto;
+    transition:filter .12s ease;
+  }
+  .primary-btn:hover{ filter:brightness(1.08); }
+  .action-row{ display:flex; margin-bottom:16px; }
+  .action-row .primary-btn{ margin-left:0; }
+  .primary-btn svg{ width:15px; height:15px; }
+
+  .filter-row{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .filter-pill{
+    all:unset; cursor:pointer; font-family:var(--font-mono); font-size:12px; padding:6px 13px;
+    border-radius:999px; border:1px solid var(--border); color:var(--text-muted); background:var(--panel);
+  }
+  .filter-pill:hover{ border-color:var(--accent); color:var(--text); }
+  .filter-pill.is-active{ border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+
+  .tile-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px;
+    animation:flip-in .18s ease;
+  }
+  @keyframes flip-in{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:translateY(0); } }
+
+  .tile{
+    position:relative; border:1px solid var(--border); background:var(--panel); border-radius:12px;
+    padding:16px; display:flex; flex-direction:column; gap:10px; text-decoration:none; color:inherit;
+    cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .tile:hover, .tile:focus-within{ border-color:var(--accent); box-shadow:0 4px 14px -6px rgba(0,0,0,.4); }
+  @keyframes tileDragOverPulse{
+    0%, 100%{ box-shadow:inset 0 0 0 2px rgb(var(--theme-rgb)); }
+    50%{ box-shadow:inset 0 0 0 3px rgb(var(--theme-rgb)); }
+  }
+  .tile.is-dragging{
+    opacity:.4; border-style:dashed; border-color:rgb(var(--theme-rgb));
+    transform:scale(.96); box-shadow:0 10px 24px -8px rgba(0,0,0,.55);
+  }
+  .tile.drag-over{ background:rgba(var(--theme-rgb),.12); animation:tileDragOverPulse 1s ease-in-out infinite; }
+  .tile__header{ display:flex; align-items:center; gap:7px; }
+  .tile__grip{
+    width:15px; height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    color:var(--text-muted); opacity:0; transition:opacity .12s ease; cursor:grab;
+    -webkit-user-drag:element; -webkit-user-select:none; user-select:none;
+  }
+  .tile:hover .tile__grip, .tile:focus-within .tile__grip{ opacity:.55; }
+  .tile__grip:hover{ opacity:1 !important; }
+  .tile__grip svg{ width:100%; height:100%; }
+  .tile__icon-wrap{
+    width:26px; height:26px; border-radius:7px; overflow:visible; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; color:rgb(var(--theme-rgb));
+    background:transparent; position:relative;
+  }
+  .tile__icon-wrap img{ width:100%; height:100%; object-fit:cover; display:block; border-radius:7px; }
+  .tile__icon-wrap svg{ width:100%; height:100%; }
+  .tile__profile-badge{
+    position:absolute; bottom:-3px; right:-3px; width:9px; height:9px; border-radius:50%;
+    border:2px solid var(--panel); box-sizing:content-box;
+  }
+  .tile__label{
+    font-family:var(--font-body); font-weight:600; font-size:14px; padding-right:56px;
+    overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  }
+  .tile__path{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap;
+  }
+  .tile__actions{ position:absolute; top:10px; right:10px; display:flex; gap:4px; opacity:0; transition:opacity .12s ease; }
+  .tile:hover .tile__actions, .tile:focus-within .tile__actions{ opacity:1; }
+  .tile__action-btn{
+    all:unset; cursor:pointer; width:24px; height:24px; border-radius:6px; border:1px solid var(--border);
+    background:var(--panel-raised); display:flex; align-items:center; justify-content:center; color:var(--text-muted);
+  }
+  .tile__action-btn:hover{ color:var(--text); border-color:var(--accent); }
+  .tile__action-btn svg{ width:13px; height:13px; }
+
+  /* ---------- tile size preference ---------- */
+  body[data-tile-size="small"] .tile-grid{ grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:10px; }
+  body[data-tile-size="small"] .tile{ padding:11px; gap:7px; }
+  body[data-tile-size="small"] .tile__icon-wrap{ width:20px; height:20px; border-radius:5px; }
+  body[data-tile-size="small"] .tile__icon-wrap img{ border-radius:5px; }
+  body[data-tile-size="small"] .tile__label{ font-size:12.5px; padding-right:44px; }
+  body[data-tile-size="small"] .tile__path{ font-size:10px; }
+
+  body[data-tile-size="large"] .tile-grid{ grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:18px; }
+  body[data-tile-size="large"] .tile{ padding:22px; gap:14px; }
+  body[data-tile-size="large"] .tile__icon-wrap{ width:48px; height:48px; border-radius:10px; }
+  body[data-tile-size="large"] .tile__icon-wrap img{ border-radius:10px; }
+  body[data-tile-size="large"] .tile__label{ font-size:16px; padding-right:60px; }
+  body[data-tile-size="large"] .tile__path{ font-size:12.5px; }
+
+  .add-tile{
+    border:1px dashed var(--border); background:transparent; color:var(--text-muted);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+    min-height:104px; border-radius:12px; cursor:pointer; font-family:var(--font-body); font-size:13px;
+    transition:border-color .12s ease, color .12s ease;
+  }
+  .add-tile:hover{ border-color:rgb(var(--theme-rgb)); color:rgb(var(--theme-rgb)); }
+  .add-tile svg{ width:20px; height:20px; }
+
+  .empty-state{
+    border:1px dashed var(--border); border-radius:14px; padding:52px 24px; text-align:center;
+    color:var(--text-muted); display:flex; flex-direction:column; align-items:center; gap:14px;
+  }
+  .empty-state svg{ width:32px; height:32px; color:rgb(var(--theme-rgb)); }
+  .empty-state h3{ font-family:var(--font-display); color:var(--text); margin:0; font-size:16px; }
+  .empty-state p{ margin:0; font-size:13px; max-width:340px; line-height:1.5; }
+
+  /* ---------- modal ---------- */
+  .overlay{
+    display:none; position:fixed; inset:0; background:rgba(10,10,8,.6); align-items:center;
+    justify-content:center; padding:20px; z-index:50;
+  }
+  .overlay.show{ display:flex; }
+  .modal-shell{
+    display:flex; gap:16px; width:100%; max-width:740px; align-items:flex-start;
+  }
+  .modal{
+    width:100%; max-width:420px; flex:1 1 380px; background:var(--panel); border:1px solid var(--border);
+    border-radius:16px; padding:24px; display:flex; flex-direction:column; gap:16px;
+  }
+  .modal h2{ font-family:var(--font-display); font-size:17px; margin:0; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12px; color:var(--text-muted); font-family:var(--font-mono); }
+  .field input[type=text]{
+    background:var(--panel-raised); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:10px 12px; font-family:var(--font-body); font-size:14px;
+  }
+  .field input[type=text]:focus{ border-color:var(--accent); outline:none; }
+  .field .hint{ font-size:11.5px; color:var(--text-muted); line-height:1.5; }
+  .field-select{
+    background:var(--panel-raised); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:10px 12px; font-family:var(--font-body); font-size:14px; cursor:pointer;
+  }
+  .field-select:focus{ border-color:var(--accent); outline:none; }
+  .hint-link-btn{
+    all:unset; cursor:pointer; color:rgb(var(--theme-rgb)); text-decoration:underline; font-size:11.5px;
+  }
+  .hint-link-btn:hover{ opacity:.8; }
+
+  .target-row{ display:flex; gap:8px; }
+  .target-row input{ flex:1; min-width:0; }
+  .target-row .secondary-btn{ flex-shrink:0; }
+  .icon-picker-row{ display:flex; align-items:center; gap:12px; }
+  .icon-picker-preview{
+    width:44px; height:44px; border-radius:10px; border:1px solid var(--border); background:var(--panel-raised);
+    display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; color:var(--accent);
+  }
+  .icon-picker-preview img{ width:100%; height:100%; object-fit:cover; }
+  .icon-picker-preview svg{ width:22px; height:22px; }
+  .icon-picker-buttons{ display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+
+  .asset-library-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(44px, 1fr)); gap:8px; margin-top:10px;
+    max-height:160px; overflow-y:auto; padding:10px; background:var(--panel-raised); border-radius:10px; border:1px solid var(--border);
+  }
+  .asset-library-grid__empty{ grid-column:1/-1; font-size:12px; color:var(--text-muted); text-align:center; padding:6px 0; }
+  .asset-library-item{
+    all:unset; cursor:pointer; width:44px; height:44px; border-radius:9px; overflow:hidden; border:2px solid transparent;
+    background:var(--panel); display:block;
+  }
+  .asset-library-item:hover{ border-color:rgb(var(--theme-rgb)); }
+  .asset-library-item img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .asset-library-grid--large{ grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); max-height:320px; }
+  .asset-library-grid--large .asset-library-item{ width:84px; height:56px; border-radius:8px; }
+
+  /* ---------- preview panel ---------- */
+  .preview-panel{
+    flex:0 0 240px; width:240px; background:var(--panel); border:1px solid var(--border);
+    border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:12px;
+    align-items:center; justify-content:center; min-height:320px; text-align:center;
+  }
+  .preview-panel[hidden]{ display:none; }
+  #previewEmptyState, #previewErrorState{ display:flex; flex-direction:column; align-items:center; gap:10px; color:var(--text-muted); }
+  #previewEmptyState svg{ width:28px; height:28px; }
+  #previewEmptyState p{ margin:0; font-size:12.5px; line-height:1.5; }
+  #previewErrorState svg{ width:28px; height:28px; color:var(--danger); }
+  #previewErrorState p{ margin:0; font-size:12.5px; line-height:1.5; }
+  #previewContent{ width:100%; display:flex; flex-direction:column; gap:12px; text-align:left; }
+  .preview-thumb{
+    width:100%; height:150px; border-radius:10px; overflow:hidden; background:var(--panel-raised);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .preview-thumb img{ width:100%; height:100%; object-fit:contain; }
+  .preview-thumb svg{ width:44px; height:44px; color:var(--accent); }
+  .preview-name{ font-family:var(--font-body); font-weight:600; font-size:14px; word-break:break-word; }
+  .preview-meta{ font-size:12px; color:var(--text-muted); }
+  .preview-path{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); word-break:break-all; line-height:1.5; }
+
+  .segmented{ display:flex; gap:6px; }
+  .segmented button{
+    all:unset; cursor:pointer; flex:1; text-align:center; font-size:12px; padding:8px 4px;
+    border:1px solid var(--border); border-radius:8px; color:var(--text-muted); font-family:var(--font-mono);
+  }
+  .segmented button.is-active{ border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:4px; }
+  .secondary-btn{
+    all:unset; cursor:pointer; font-size:13px; color:var(--text-muted); padding:9px 14px; border-radius:9px;
+    border:1px solid var(--border);
+  }
+  .secondary-btn:hover{ color:var(--text); border-color:var(--text-muted); }
+  .danger-btn{
+    all:unset; cursor:pointer; font-size:13px; color:var(--danger); padding:9px 14px; border-radius:9px;
+    border:1px solid rgba(217,105,79,.4); margin-right:auto;
+  }
+  .danger-btn:hover{ background:rgba(217,105,79,.12); }
+
+  /* ---------- toast ---------- */
+  #toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(12px); opacity:0;
+    background:var(--panel-raised); border:1px solid var(--border); color:var(--text); font-size:13px;
+    padding:10px 16px; border-radius:10px; pointer-events:none; transition:opacity .15s ease, transform .15s ease;
+    z-index:60; max-width:80vw; text-align:center;
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  #toast.is-error{ border-color:rgba(217,105,79,.5); }
+  .toast__action{
+    all:unset; pointer-events:auto; cursor:pointer; margin-left:12px; font-weight:700;
+    color:rgb(var(--theme-rgb)); text-decoration:underline;
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width:760px){
+    .app-shell{ flex-direction:column; }
+    .switch-rail{ width:100% !important; height:auto; flex-direction:row; overflow-x:auto; padding:14px 16px; gap:8px; }
+    .brand-mark{ display:none; }
+    .rail-title{ display:none; }
+    .rail-resize-handle{ display:none; }
+    .add-project-btn{ flex-shrink:0; margin-bottom:0; white-space:nowrap; }
+    .switch-list{ flex-direction:row; overflow-y:visible; overflow-x:visible; margin:0; padding:0; }
+    .switch{ flex-shrink:0; min-width:150px; }
+    .switch__count{ display:none; }
+    .switch__merge{ display:none; }
+    .switch__archive{ display:none; }
+    .switch__delete{ display:none; }
+    .rail-footer{ display:none; }
+    .main{ padding:20px 16px 40px; }
+    .top-right-cluster{ top:14px; right:14px; }
+    .primary-btn{ margin-left:0; }
+    .main-header{ gap:10px; }
+    #skeleton .rail-sk{ width:100%; flex-direction:row; }
+    #skeleton .bar{ min-width:150px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- loading state: shown until JS mounts real data, and as a safety net if JS never runs -->
+<div id="skeleton" aria-hidden="true">
+  <div class="rail-sk">
+    <div class="bar pulse"></div>
+    <div class="bar pulse"></div>
+    <div class="bar pulse"></div>
+    <div class="bar pulse"></div>
+  </div>
+  <div class="main-sk">
+    <div class="bar pulse"></div>
+    <div class="grid-sk">
+      <div class="tile-sk pulse"></div>
+      <div class="tile-sk pulse"></div>
+      <div class="tile-sk pulse"></div>
+    </div>
+  </div>
+</div>
+<noscript>
+  <div style="padding:40px;font-family:sans-serif;color:#EDEAE0;background:#1B1C19;">
+    ProjQik needs JavaScript enabled to run. Please restart the app.
+  </div>
+</noscript>
+
+<div id="app">
+  <div class="app-shell">
+    <nav class="switch-rail" id="switchRail" aria-label="Projects">
+      <div class="brand-mark">
+        <img src="projqik-badge.png" alt="ProjQik" class="brand-mark__logo">
+        <div class="brand-mark__text-group">
+          <span class="brand-mark__text">ProjQik</span>
+          <span class="brand-mark__subtext">by Freedom Forge AI</span>
+        </div>
+      </div>
+      <div class="search-box">
+        <svg class="search-box__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="globalSearchInput" class="search-box__input" placeholder="Search everything…" autocomplete="off">
+        <button type="button" class="search-box__clear" id="searchClearBtn" style="display:none;" aria-label="Clear search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <div class="search-results" id="searchResults" style="display:none;"></div>
+      </div>
+      <p class="rail-title">Projects</p>
+      <button type="button" class="add-project-btn" id="addProjectBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        <span id="addProjectBtnLabel">Add Project Tab</span>
+      </button>
+      <div class="switch-list" id="switchList" aria-label="Reorder by dragging">
+        <!-- switches injected here -->
+      </div>
+      <div class="rail-resize-handle" id="railResizeHandle" title="Drag to resize"></div>
+    </nav>
+    <div class="drop-overlay" id="dropOverlay">
+      <div class="drop-overlay__card">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/></svg>
+        <p>Drop to add to <strong id="dropOverlayProjectName">this project</strong></p>
+      </div>
+    </div>
+    <main class="main">
+      <div class="storage-banner" id="storageBanner" role="alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+        <span>Changes aren't saving right now. Everything still works, but a restart will reset it.</span>
+      </div>
+
+      <div class="main-header">
+        <input class="project-name" id="projectNameInput" type="text" aria-label="Project name" />
+        <div class="project-profile-picker" id="projectProfilePicker" style="display:none;">
+          <span class="project-profile-picker__dot" id="projectProfileDot"></span>
+          <select id="projectProfileSelect" class="project-profile-picker__select" aria-label="Default Chrome profile for this project's links"></select>
+        </div>
+        <input type="file" id="bgFileInput" accept="image/*" style="display:none;">
+      </div>
+
+      <div class="action-row">
+        <button class="primary-btn" id="addTileBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Add tile
+        </button>
+      </div>
+
+      <div class="filter-row" id="filterRow"></div>
+
+      <div id="gridArea"></div>
+    </main>
+  </div>
+</div>
+
+<div class="overlay" id="modalOverlay">
+  <div class="modal-shell">
+    <form class="modal" id="tileForm">
+      <h2 id="modalTitle">Add a tile</h2>
+
+      <div class="field">
+        <label for="tileLabel">Label</label>
+        <input type="text" id="tileLabel" placeholder="e.g. Investor Deck.pptx" required />
+      </div>
+
+      <div class="field">
+        <label>Type</label>
+        <div class="segmented" id="typeSegmented">
+          <button type="button" data-type="file">File</button>
+          <button type="button" data-type="folder">Folder</button>
+          <button type="button" data-type="app">App</button>
+          <button type="button" data-type="url">Link</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="tileTarget" id="targetLabel">Path</label>
+        <div class="target-row">
+          <input type="text" id="tileTarget" placeholder="/Users/you/Documents/..." required />
+          <button type="button" class="secondary-btn" id="browseBtn">Browse…</button>
+        </div>
+        <p class="hint" id="targetHint"></p>
+      </div>
+
+      <div class="field" id="tileProfileField" style="display:none;">
+        <label for="tileProfileSelect">Chrome profile</label>
+        <div id="tileProfileNoneYet" style="display:none;">
+          <p class="hint">No Chrome profiles set up yet. <button type="button" class="hint-link-btn" id="openProfileSettingsFromTile">Set one up in Preferences</button> to make this link open under a specific account.</p>
+        </div>
+        <div id="tileProfileSelectWrap">
+          <select id="tileProfileSelect" class="field-select"></select>
+          <p class="hint">Leave on the project default unless this specific link needs a different account.</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Tile icon</label>
+        <div class="icon-picker-row">
+          <div class="icon-picker-preview" id="iconPickerPreview"></div>
+          <div class="icon-picker-buttons">
+            <button type="button" class="secondary-btn" id="iconUploadBtn">Upload icon</button>
+            <button type="button" class="secondary-btn" id="iconBrowseBtn">Browse library</button>
+            <button type="button" class="secondary-btn" id="iconResetBtn" style="display:none;">Reset to default</button>
+          </div>
+        </div>
+        <input type="file" id="iconFileInput" accept="image/*" style="display:none;">
+        <div class="asset-library-grid" id="iconLibraryGrid" style="display:none;"></div>
+        <p class="hint">Optional — pick any image to represent this tile, or reuse one already in your library. Otherwise, image files use their own thumbnail automatically, and everything else uses a default icon.</p>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="danger-btn" id="deleteTileBtn" style="display:none;">Delete tile</button>
+        <button type="button" class="secondary-btn" id="cancelModalBtn">Cancel</button>
+        <button type="submit" class="primary-btn" style="margin-left:0;">Save</button>
+      </div>
+    </form>
+
+    <aside class="preview-panel" id="previewPanel">
+      <div id="previewEmptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+        <p>Browse or paste a path to preview it here — helps confirm it’s the right one.</p>
+      </div>
+      <div id="previewErrorState" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+        <p id="previewErrorText">Can’t find anything at that path.</p>
+      </div>
+      <div id="previewContent" style="display:none;">
+        <div class="preview-thumb" id="previewThumb"></div>
+        <div class="preview-name" id="previewName"></div>
+        <div class="preview-meta" id="previewMeta"></div>
+        <div class="preview-path" id="previewPath"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="overlay" id="bgAdjustOverlay">
+  <div class="modal" style="max-width:360px;">
+    <h2>Adjust background</h2>
+
+    <div class="field">
+      <label>Fit</label>
+      <div class="segmented" id="bgFitSegmented">
+        <button type="button" data-fit="cover">Fill (crop)</button>
+        <button type="button" data-fit="contain">Fit (show all)</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Position</label>
+      <div class="position-grid" id="bgPositionGrid">
+        <button type="button" data-position="top left"><span class="dot"></span></button>
+        <button type="button" data-position="top center"><span class="dot"></span></button>
+        <button type="button" data-position="top right"><span class="dot"></span></button>
+        <button type="button" data-position="center left"><span class="dot"></span></button>
+        <button type="button" data-position="center center"><span class="dot"></span></button>
+        <button type="button" data-position="center right"><span class="dot"></span></button>
+        <button type="button" data-position="bottom left"><span class="dot"></span></button>
+        <button type="button" data-position="bottom center"><span class="dot"></span></button>
+        <button type="button" data-position="bottom right"><span class="dot"></span></button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Darkness</label>
+      <div class="darkness-row">
+        <input type="range" id="bgDarkness" min="0" max="100" step="5">
+        <span class="darkness-value" id="bgDarknessValue">72%</span>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="primary-btn" id="bgAdjustDoneBtn" style="margin-left:auto;">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="mergeOverlay">
+  <div class="modal" style="max-width:380px;">
+    <h2>Merge "<span id="mergeSourceName"></span>"</h2>
+    <div class="field">
+      <label for="mergeDestSelect">Merge into</label>
+      <select id="mergeDestSelect" class="field-select"></select>
+      <p class="hint">Every tile moves into the project you pick. Tiles that already exist there (same file/link, same Chrome profile) are combined instead of duplicated. The source project is then removed.</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary-btn" id="mergeCancelBtn">Cancel</button>
+      <button type="button" class="primary-btn" id="mergeConfirmBtn">Merge</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="backgroundLibraryOverlay">
+  <div class="modal" style="max-width:420px;">
+    <h2>Background library</h2>
+    <p class="hint">Pick one already in your library, or use "Set background image" to upload a new one.</p>
+    <div class="asset-library-grid asset-library-grid--large" id="backgroundLibraryGrid"></div>
+    <div class="modal-actions">
+      <button type="button" class="secondary-btn" id="backgroundLibraryCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="top-right-cluster" id="topRightCluster">
+  <button type="button" class="header-icon-btn" id="bgLibraryBtn" title="Browse background library" aria-label="Browse background library">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+  </button>
+  <button type="button" class="header-icon-btn" id="bgSetBtn" title="Set background image" aria-label="Set background image for this project">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+  </button>
+  <button type="button" class="header-icon-btn" id="bgRemoveBtn" title="Remove background image" aria-label="Remove background image for this project" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+  </button>
+  <button type="button" class="header-icon-btn" id="bgAdjustBtn" title="Adjust background" aria-label="Adjust background image for this project" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+  </button>
+  <button type="button" class="settings-gear-btn" id="settingsGearBtn" title="Preferences" aria-label="Open preferences">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+  </button>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="modal settings-modal">
+    <div class="settings-header">
+      <h2>Preferences</h2>
+      <button type="button" class="header-icon-btn" id="settingsCloseBtn" aria-label="Close preferences">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="settings-section">
+      <label class="settings-label">Color scheme</label>
+      <div class="theme-row" id="settingsThemeRow"></div>
+    </div>
+
+    <div class="settings-section">
+      <label class="settings-label">Accent brightness</label>
+      <div class="darkness-row">
+        <input type="range" id="accentSaturationSlider" min="20" max="80" step="1">
+        <span class="darkness-value" id="accentSaturationValue">57%</span>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <label class="settings-label">Tile icon size</label>
+      <div class="segmented" id="tileSizeSegmented">
+        <button type="button" data-size="small">Small</button>
+        <button type="button" data-size="medium">Medium</button>
+        <button type="button" data-size="large">Large</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <label class="settings-label">Default view per project</label>
+      <p class="settings-hint">ProjQik remembers whichever filter (All, Files, Folders, Apps, or Links) you last used in each project, and shows that again the next time you switch to it.</p>
+    </div>
+
+    <div class="settings-section">
+      <label class="settings-label">Browser profiles</label>
+      <p class="settings-hint">For link tiles: opens the right Chrome profile automatically (e.g. your work links open under your work Google account) instead of whichever profile Chrome last had active.</p>
+      <button type="button" class="secondary-btn" id="detectProfilesBtn">Detect Chrome profiles</button>
+      <div id="chromeProfilesList" class="chrome-profiles-list"></div>
+    </div>
+
+    <div class="settings-section">
+      <label class="settings-label">Archived projects</label>
+      <div id="archivedProjectsList" class="archived-list"></div>
+    </div>
+
+    <div class="settings-section">
+      <label class="settings-label">Backup</label>
+      <div class="settings-backup-row">
+        <button type="button" class="secondary-btn" id="settingsExportBtn">Export backup</button>
+        <button type="button" class="secondary-btn" id="settingsImportBtn">Import backup</button>
+      </div>
+      <p class="hint">Backups include your icon and background library, not just your projects and tiles.</p>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  // Deliberately NOT renamed through any rebrand (Launchpad -> ThrusterPad -> ProjQik): this key
+  // lives inside the userData folder that main.js pins to the original "launchpad" location for
+  // data continuity. Changing this string would make the app look for data under a new key that
+  // doesn't exist yet, which would appear as a total data loss for anyone updating.
+  var STORAGE_KEY = 'launchpad.v1';
+  var storageBroken = false;
+
+  function defaultData(){
+    return {
+      activeProjectId: 'p1',
+      railWidth: 260,
+      appTheme: 'slate',
+      accentSaturation: null,
+      tileSize: 'medium',
+      projectOrderCustomized: false, // fresh installs default to alphabetical order
+      chromeProfiles: [],
+      projects: [
+        { id:'p1', name:'Project 1', tiles: [], themeIndex: 0 },
+        { id:'p2', name:'Project 2', tiles: [], themeIndex: 1 },
+        { id:'p3', name:'Project 3', tiles: [], themeIndex: 2 },
+        { id:'p4', name:'Project 4', tiles: [], themeIndex: 3 }
+      ]
+    };
+  }
+
+  var RAIL_WIDTH_MIN = 200;
+  var RAIL_WIDTH_MAX = 440;
+
+  var MAX_PROJECTS = 25;
+
+  function isValidData(d){
+    return !!d && Array.isArray(d.projects) && d.projects.length > 0 &&
+      d.projects.every(function(p){ return p && typeof p.id === 'string' && Array.isArray(p.tiles); });
+  }
+
+  // Assigns a permanent theme color to any project that doesn't have one yet (new saves, or
+  // projects saved before color assignment was tracked explicitly). Once assigned, a project's
+  // color never changes just because it gets dragged to a new position in the list.
+  function migrateThemeIndexes(data){
+    var used = {};
+    data.projects.forEach(function(p){
+      if(typeof p.themeIndex === 'number') used[p.themeIndex] = true;
+    });
+    data.projects.forEach(function(p, index){
+      if(typeof p.themeIndex === 'number') return;
+      var candidate = index % THEMES.length;
+      while(used[candidate]) candidate = (candidate + 1) % THEMES.length;
+      p.themeIndex = candidate;
+      used[candidate] = true;
+    });
+    data.projects.forEach(function(p){
+      if(typeof p.lastFilter !== 'string') p.lastFilter = 'all';
+    });
+    return data;
+  }
+
+  function loadData(){
+    try{
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(isValidData(parsed)) return migrateThemeIndexes(parsed);
+      }
+    }catch(err){
+      storageBroken = true;
+      console.error('ProjQik: failed to read saved data', err);
+    }
+    return defaultData();
+  }
+
+  var DEFAULT_STORAGE_MESSAGE = 'Changes aren\u2019t saving right now. Everything still works, but a restart will reset it.';
+  var QUOTA_STORAGE_MESSAGE = 'That background image is too large to save. Try a smaller photo (under ~2MB), then set it again.';
+  var storageBannerMessage = DEFAULT_STORAGE_MESSAGE;
+
+  function saveData(){
+    try{
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      storageBroken = false;
+    }catch(err){
+      storageBroken = true;
+      storageBannerMessage = (err && (err.name === 'QuotaExceededError' || err.code === 22))
+        ? QUOTA_STORAGE_MESSAGE
+        : DEFAULT_STORAGE_MESSAGE;
+      console.error('ProjQik: failed to save data', err);
+    }
+    renderStorageBanner();
+  }
+
+  // Each project gets its own hue for the panel wash + its switch's indicator light.
+  // Controls (buttons, focus rings, pills) stay a consistent brass so interaction cues never move.
+  // Assigned once per project at creation time (see migrateThemeIndexes) and never recalculated
+  // from array position, so dragging a project to a new slot never changes its color.
+  var THEMES = [
+    { accent:'#E8A33D', rgb:'232,163,61' },  // brass
+    { accent:'#4FC1BE', rgb:'79,193,190' },  // teal
+    { accent:'#A883E3', rgb:'168,131,227' }, // violet
+    { accent:'#E37B87', rgb:'227,123,135' }, // coral
+    { accent:'#5B9EE8', rgb:'91,158,232' },  // sky blue
+    { accent:'#7FC46B', rgb:'127,196,107' }, // sage green
+    { accent:'#D9CE55', rgb:'217,206,85' },  // goldenrod
+    { accent:'#E37BC4', rgb:'227,123,196' }, // magenta
+    { accent:'#C97B4A', rgb:'201,123,74' },  // terracotta
+    { accent:'#8A8FE0', rgb:'138,143,224' }, // indigo
+    { accent:'#5FC2A0', rgb:'95,194,160' },  // mint
+    { accent:'#D9736B', rgb:'217,115,107' }, // brick red
+    { accent:'#C25B7A', rgb:'194,91,122' },  // rose
+    { accent:'#B8923A', rgb:'184,146,58' },  // ochre
+    { accent:'#6B8CAE', rgb:'107,140,174' }, // steel blue
+    { accent:'#4F9B6E', rgb:'79,155,110' },  // forest green
+    { accent:'#9B5FA0', rgb:'155,95,160' },  // plum
+    { accent:'#B8623F', rgb:'184,98,63' },   // rust
+    { accent:'#4FB3C9', rgb:'79,179,201' },  // aqua
+    { accent:'#8FA85C', rgb:'143,168,92' },  // olive
+    { accent:'#D98CD0', rgb:'217,140,208' }, // orchid
+    { accent:'#6FA88F', rgb:'111,168,143' }, // sea green
+    { accent:'#C9A05B', rgb:'201,160,91' },  // amber tan
+    { accent:'#7B8FC9', rgb:'123,143,201' }, // periwinkle
+    { accent:'#C96B8C', rgb:'201,107,140' }  // raspberry
+  ];
+
+  var state = loadData();
+  if(typeof state.railWidth !== 'number') state.railWidth = 260;
+  if(typeof state.appTheme !== 'string') state.appTheme = 'slate';
+  if(typeof state.accentSaturation !== 'number') state.accentSaturation = null;
+  if(typeof state.tileSize !== 'string') state.tileSize = 'medium';
+  if(typeof state.projectOrderCustomized !== 'boolean') state.projectOrderCustomized = true; // see migrateThemeIndexes note
+  if(!Array.isArray(state.chromeProfiles)) state.chromeProfiles = [];
+  var currentFilter = 'all';
+  var editingTileId = null; // when set, modal is in edit mode
+  var currentType = 'file';
+
+  function getTheme(project){
+    var idx = (typeof project.themeIndex === 'number') ? project.themeIndex : state.projects.indexOf(project);
+    return THEMES[((idx % THEMES.length) + THEMES.length) % THEMES.length];
+  }
+
+  // ---------- Chrome profile routing ----------
+  function getChromeProfileById(id){
+    if(!id) return null;
+    var found = null;
+    state.chromeProfiles.forEach(function(p){ if(p.id === id) found = p; });
+    return found;
+  }
+
+  // Chrome sometimes auto-assigns the SAME display name to multiple distinct profiles (e.g. two
+  // Google Workspace accounts on the same domain that were never individually renamed). The label
+  // alone can't be trusted to be unique, so every dropdown uses this to show real disambiguating
+  // info (the signed-in email, or the raw Chrome profile folder name as a last resort) alongside it.
+  function profileDisplayLabel(profile){
+    if(profile.email) return profile.label + ' \u2014 ' + profile.email;
+    return profile.label + ' \u2014 ' + profile.directory;
+  }
+
+  // Effective profile for a URL tile: tile-level override wins, then the project's default,
+  // then null (meaning: just use the normal default browser, no profile targeting at all).
+  function getEffectiveChromeProfile(tile, project){
+    if(tile && tile.chromeProfileId){
+      var override = getChromeProfileById(tile.chromeProfileId);
+      if(override) return override;
+    }
+    if(project && project.defaultChromeProfileId){
+      var fromProject = getChromeProfileById(project.defaultChromeProfileId);
+      if(fromProject) return fromProject;
+    }
+    return null;
+  }
+
+  var DEFAULT_BG_SETTINGS = { fit:'cover', position:'center center', darkness:72 };
+
+  function getBgSettings(project){
+    var s = project.backgroundSettings || {};
+    return {
+      fit: s.fit === 'contain' ? 'contain' : DEFAULT_BG_SETTINGS.fit,
+      position: typeof s.position === 'string' ? s.position : DEFAULT_BG_SETTINGS.position,
+      darkness: (typeof s.darkness === 'number' && s.darkness >= 0 && s.darkness <= 100) ? s.darkness : DEFAULT_BG_SETTINGS.darkness
+    };
+  }
+
+  function applyMainTheme(project){
+    var theme = getTheme(project);
+    document.documentElement.style.setProperty('--theme-rgb', theme.rgb);
+    var main = document.querySelector('.main');
+    if(project.background){
+      var bg = getBgSettings(project);
+      var scrimAlpha = (bg.darkness / 100).toFixed(2);
+      main.style.background =
+        'radial-gradient(720px circle at 8% -12%, rgba(' + theme.rgb + ',.22), transparent 55%), ' +
+        'linear-gradient(rgba(27,28,25,' + scrimAlpha + '), rgba(27,28,25,' + scrimAlpha + ')), ' +
+        'url("' + project.background + '") ' + bg.position + ' / ' + bg.fit + ' no-repeat, ' +
+        'var(--bg)';
+    } else {
+      main.style.background = '';
+    }
+  }
+
+  var TYPE_META = {
+    file:   { label:'File',   targetLabel:'Path to file',
+      hint:'Click Browse to choose the file in Finder \u2014 the exact path fills in automatically.',
+      icon: iconFile },
+    folder: { label:'Folder', targetLabel:'Path to folder',
+      hint:'Click Browse to choose the folder in Finder \u2014 the exact path fills in automatically.',
+      icon: iconFolder },
+    app:    { label:'App',    targetLabel:'Path to application',
+      hint:'Click Browse to choose the app in Applications \u2014 the exact path fills in automatically.',
+      icon: iconApp },
+    url:    { label:'Link',   targetLabel:'Web address',
+      hint:'Paste the full web address. "https://" is added automatically if you leave it off.',
+      icon: iconLink }
+  };
+
+  function iconFile(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>'; }
+  function iconFolder(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>'; }
+  function iconApp(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>'; }
+  function iconLink(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l2-2a5 5 0 0 0-7.07-7.07l-1.14 1.13"/><path d="M14 11a5 5 0 0 0-7.54-.54l-2 2a5 5 0 0 0 7.07 7.07l1.14-1.13"/></svg>'; }
+  function iconPencil(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m17 3 4 4L7 21H3v-4Z"/></svg>'; }
+  function iconTrash(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>'; }
+  function iconArchive(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/></svg>'; }
+  function iconMerge(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v12a3 3 0 0 0 3 3h9M18 15l3 3-3 3M6 9h4"/></svg>'; }
+  function iconCopy(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'; }
+  function iconPlus(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>'; }
+  function iconGrip(){ return '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="5" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="8" cy="19" r="1.5"/><circle cx="16" cy="5" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="16" cy="19" r="1.5"/></svg>'; }
+  function iconEmpty(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M2 12h20"/></svg>'; }
+  function iconDownload(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>'; }
+  function iconUpload(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21V9m0 0 4 4m-4-4-4 4M4 5h16"/></svg>'; }
+
+  function el(tag, attrs, children){
+    var node = document.createElement(tag);
+    attrs = attrs || {};
+    Object.keys(attrs).forEach(function(k){
+      if(k === 'html'){ node.innerHTML = attrs[k]; }
+      else if(k.indexOf('on') === 0 && typeof attrs[k] === 'function'){ node.addEventListener(k.slice(2), attrs[k]); }
+      else if(k === 'class'){ node.className = attrs[k]; }
+      else { node.setAttribute(k, attrs[k]); }
+    });
+    (children || []).forEach(function(c){ if(c) node.appendChild(c); });
+    return node;
+  }
+
+  function getActiveProject(){
+    return state.projects.find(function(p){ return p.id === state.activeProjectId; }) || state.projects[0];
+  }
+
+  // Display order: alphabetical by default, until the person drags a tab — at that point their
+  // manual arrangement becomes the permanent order and alphabetical sorting no longer applies.
+  // Archived projects are excluded entirely — they're restored from Preferences, not shown here.
+  function getDisplayProjects(){
+    var visible = state.projects.filter(function(p){ return !p.archived; });
+    if(state.projectOrderCustomized) return visible;
+    return visible.slice().sort(function(a, b){ return a.name.localeCompare(b.name); });
+  }
+
+  function getVisibleProjectCount(){
+    return state.projects.filter(function(p){ return !p.archived; }).length;
+  }
+
+  function uid(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function projectUid(){ return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function nextThemeIndex(){
+    var used = {};
+    state.projects.forEach(function(p){ used[p.themeIndex] = true; });
+    for(var i = 0; i < THEMES.length; i++){
+      if(!used[i]) return i;
+    }
+    return state.projects.length % THEMES.length; // all colors taken; only possible past 20 projects
+  }
+
+  function addProject(){
+    if(state.projects.length >= MAX_PROJECTS){
+      showToast('You\u2019ve reached the ' + MAX_PROJECTS + '-project limit.', true);
+      return;
+    }
+    var project = {
+      id: projectUid(),
+      name: 'Project ' + (state.projects.length + 1),
+      tiles: [],
+      themeIndex: nextThemeIndex(),
+      lastFilter: 'all'
+    };
+    state.projects.push(project); // appended to the end of the custom order (if any) — alphabetical display re-sorts automatically otherwise
+    state.activeProjectId = project.id;
+    currentFilter = 'all';
+    saveData();
+    renderRail();
+    renderMain();
+  }
+
+  function moveProject(fromId, toId){
+    if(fromId === toId) return;
+    if(!state.projectOrderCustomized){
+      // Lock in the currently-displayed alphabetical order as the new baseline before applying
+      // the manual move. Archived projects are excluded from getDisplayProjects(), so they're
+      // appended back afterward rather than lost — they just don't have a meaningful position
+      // since they're never shown.
+      var archived = state.projects.filter(function(p){ return p.archived; });
+      state.projects = getDisplayProjects().concat(archived);
+      state.projectOrderCustomized = true;
+    }
+    var fromIndex = state.projects.findIndex(function(p){ return p.id === fromId; });
+    var toIndex = state.projects.findIndex(function(p){ return p.id === toId; });
+    if(fromIndex === -1 || toIndex === -1) return;
+    var moved = state.projects.splice(fromIndex, 1)[0];
+    state.projects.splice(toIndex, 0, moved);
+    saveData();
+    renderRail();
+  }
+
+  function deleteProject(project){
+    if(getVisibleProjectCount() <= 1){
+      showToast('You need at least one project \u2014 can\u2019t delete the last one.', true);
+      return;
+    }
+    var tileCount = project.tiles.length;
+    var message = 'Delete "' + project.name + '"'
+      + (tileCount > 0 ? ' and its ' + tileCount + ' tile' + (tileCount === 1 ? '' : 's') : '')
+      + '? You\u2019ll have a few seconds to undo it after.';
+    var confirmed = window.confirm(message);
+    if(!confirmed) return;
+
+    var originalIndex = state.projects.indexOf(project);
+    var wasActive = state.activeProjectId === project.id;
+
+    state.projects = state.projects.filter(function(p){ return p.id !== project.id; });
+    if(wasActive){
+      state.activeProjectId = getDisplayProjects()[0].id;
+      var newActive = getActiveProject();
+      currentFilter = (newActive && typeof newActive.lastFilter === 'string') ? newActive.lastFilter : 'all';
+    }
+    saveData();
+    renderRail();
+    applyMainTheme(getActiveProject());
+    renderMain();
+    showToast('Project deleted', false, {
+      label: 'Undo',
+      onClick: function(){
+        var insertAt = Math.min(originalIndex, state.projects.length);
+        if(insertAt < 0) insertAt = state.projects.length;
+        state.projects.splice(insertAt, 0, project);
+        if(wasActive){
+          state.activeProjectId = project.id;
+          currentFilter = (typeof project.lastFilter === 'string') ? project.lastFilter : 'all';
+        }
+        saveData();
+        renderRail();
+        applyMainTheme(getActiveProject());
+        renderMain();
+        showToast('"' + project.name + '" restored');
+      }
+    });
+  }
+
+  function archiveProject(project){
+    if(getVisibleProjectCount() <= 1){
+      showToast('You need at least one active project \u2014 can\u2019t archive the last one.', true);
+      return;
+    }
+    project.archived = true;
+    if(state.activeProjectId === project.id){
+      state.activeProjectId = getDisplayProjects()[0].id;
+      var newActive = getActiveProject();
+      currentFilter = (newActive && typeof newActive.lastFilter === 'string') ? newActive.lastFilter : 'all';
+    }
+    saveData();
+    renderRail();
+    applyMainTheme(getActiveProject());
+    renderMain();
+    showToast('"' + project.name + '" archived \u2014 restore it anytime from Preferences');
+  }
+
+  function restoreProject(project){
+    delete project.archived;
+    saveData();
+    renderRail();
+    refreshArchivedList();
+    showToast('"' + project.name + '" restored');
+  }
+
+  // ---------- merge projects ----------
+  var mergeSourceProject = null;
+
+  function tilesEffectivelyIdentical(tileA, projectA, tileB, projectB){
+    if(tileA.target !== tileB.target) return false;
+    if(tileA.type !== tileB.type) return false;
+    if(tileA.type !== 'url') return true; // profile only applies to link tiles
+    var pa = getEffectiveChromeProfile(tileA, projectA);
+    var pb = getEffectiveChromeProfile(tileB, projectB);
+    return (pa ? pa.id : null) === (pb ? pb.id : null);
+  }
+
+  function mergeProjectInto(source, dest){
+    var mergedCount = 0;
+    var keptCount = 0;
+    source.tiles.forEach(function(tile){
+      var duplicate = dest.tiles.find(function(t){ return tilesEffectivelyIdentical(tile, source, t, dest); });
+      if(duplicate){
+        mergedCount++;
+      } else {
+        dest.tiles.push(tile);
+        keptCount++;
+      }
+    });
+    var wasActive = state.activeProjectId === source.id;
+    state.projects = state.projects.filter(function(p){ return p.id !== source.id; });
+    if(wasActive){
+      state.activeProjectId = dest.id;
+      currentFilter = (typeof dest.lastFilter === 'string') ? dest.lastFilter : 'all';
+    }
+    saveData();
+    renderRail();
+    applyMainTheme(getActiveProject());
+    renderMain();
+    var summary = keptCount + ' tile' + (keptCount === 1 ? '' : 's') + ' moved into "' + dest.name + '"'
+      + (mergedCount > 0 ? ', ' + mergedCount + ' combined with existing tile' + (mergedCount === 1 ? '' : 's') : '');
+    showToast(summary);
+  }
+
+  function openMergeModal(project){
+    var others = state.projects.filter(function(p){ return p.id !== project.id && !p.archived; });
+    if(others.length === 0){
+      showToast('There\u2019s no other project to merge this into.', true);
+      return;
+    }
+    mergeSourceProject = project;
+    document.getElementById('mergeSourceName').textContent = project.name;
+    var select = document.getElementById('mergeDestSelect');
+    select.innerHTML = '';
+    others.forEach(function(p){
+      select.appendChild(el('option', { value: p.id }, [document.createTextNode(p.name)]));
+    });
+    document.getElementById('mergeOverlay').classList.add('show');
+  }
+
+  // ---------- rendering ----------
+  function renderStorageBanner(){
+    var banner = document.getElementById('storageBanner');
+    banner.classList.toggle('show', storageBroken);
+    var span = banner.querySelector('span');
+    if(span) span.textContent = storageBannerMessage;
+  }
+
+  var draggedProjectId = null;
+  var draggedTileId = null;
+  var draggedTileSourceProjectId = null;
+
+  function moveTile(fromId, toId){
+    if(fromId === toId) return;
+    var project = getActiveProject();
+    var fromIndex = project.tiles.findIndex(function(t){ return t.id === fromId; });
+    var toIndex = project.tiles.findIndex(function(t){ return t.id === toId; });
+    if(fromIndex === -1 || toIndex === -1) return;
+    var moved = project.tiles.splice(fromIndex, 1)[0];
+    project.tiles.splice(toIndex, 0, moved);
+    saveData();
+    renderGrid(project);
+  }
+
+  function moveTileToProject(tileId, fromProjectId, toProjectId){
+    if(fromProjectId === toProjectId) return;
+    var fromProject = state.projects.find(function(p){ return p.id === fromProjectId; });
+    var toProject = state.projects.find(function(p){ return p.id === toProjectId; });
+    if(!fromProject || !toProject) return;
+    var idx = fromProject.tiles.findIndex(function(t){ return t.id === tileId; });
+    if(idx === -1) return;
+    var moved = fromProject.tiles.splice(idx, 1)[0];
+    toProject.tiles.push(moved);
+    saveData();
+    renderRail();
+    if(state.activeProjectId === fromProjectId) renderMain();
+    showToast('Moved "' + moved.label + '" to "' + toProject.name + '"');
+  }
+
+  function renderRail(){
+    var switchList = document.getElementById('switchList');
+    switchList.innerHTML = '';
+
+    var addBtn = document.getElementById('addProjectBtn');
+    addBtn.disabled = state.projects.length >= MAX_PROJECTS;
+    document.getElementById('addProjectBtnLabel').textContent = 'Add Project Tab (' + state.projects.length + ' of ' + MAX_PROJECTS + ')';
+
+    getDisplayProjects().forEach(function(p){
+      var isActive = p.id === state.activeProjectId;
+      var theme = getTheme(p);
+      var btnStyle = isActive
+        ? 'border-color:' + theme.accent + '; box-shadow:0 0 0 1px rgba(' + theme.rgb + ',.22) inset, 0 0 18px -6px ' + theme.accent + ';'
+        : '';
+      var ledStyle = isActive
+        ? 'background:' + theme.accent + '; box-shadow:0 0 8px 2px rgba(' + theme.rgb + ',.65);'
+        : 'background:rgba(' + theme.rgb + ',.35);';
+      var btn = el('button', {
+        type:'button',
+        class:'switch' + (isActive ? ' is-active' : ''),
+        style: btnStyle,
+        'aria-pressed': isActive ? 'true' : 'false',
+        onclick: function(){
+          state.activeProjectId = p.id;
+          currentFilter = (typeof p.lastFilter === 'string') ? p.lastFilter : 'all';
+          saveData();
+          renderRail();
+          renderMain();
+        },
+        ondragover: function(ev){
+          ev.preventDefault();
+          if(isFileDrag(ev)) return; // a real OS file/folder being dragged in — handled globally
+          if(ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+          if(draggedProjectId && draggedProjectId !== p.id){
+            btn.classList.add('drag-over');
+          } else if(draggedTileId && draggedTileSourceProjectId !== p.id){
+            btn.classList.add('drag-over-tile');
+          }
+        },
+        ondragleave: function(){
+          btn.classList.remove('drag-over');
+          btn.classList.remove('drag-over-tile');
+        },
+        ondrop: function(ev){
+          ev.preventDefault();
+          btn.classList.remove('drag-over');
+          btn.classList.remove('drag-over-tile');
+          if(isFileDrag(ev)) return; // dropping a real file onto a project tab isn't supported — no-op
+          if(draggedTileId){
+            moveTileToProject(draggedTileId, draggedTileSourceProjectId, p.id);
+            return;
+          }
+          var fromId = draggedProjectId || (ev.dataTransfer ? ev.dataTransfer.getData('text/plain') : null);
+          if(fromId) moveProject(fromId, p.id);
+        }
+      }, [
+        el('span', {
+          class:'switch__grip',
+          html: iconGrip(),
+          title:'Drag to reorder',
+          'aria-label':'Drag to reorder ' + p.name,
+          draggable:'true',
+          ondragstart: function(ev){
+            draggedProjectId = p.id;
+            if(ev.dataTransfer){
+              ev.dataTransfer.effectAllowed = 'move';
+              try{ ev.dataTransfer.setData('text/plain', p.id); }catch(err){ /* some environments restrict this; drag still works via the module-level var */ }
+            }
+            btn.classList.add('is-dragging');
+          },
+          ondragend: function(){
+            btn.classList.remove('is-dragging');
+            Array.prototype.forEach.call(switchList.querySelectorAll('.switch'), function(node){ node.classList.remove('drag-over'); });
+            draggedProjectId = null;
+          }
+        }),
+        el('span', { class:'switch__led', style: ledStyle }),
+        el('span', { class:'switch__label' }, [document.createTextNode(p.name)]),
+        el('span', { class:'switch__count' }, [document.createTextNode(String(p.tiles.length))]),
+        el('button', {
+          type:'button', class:'switch__merge', title:'Merge into another project', 'aria-label':'Merge ' + p.name + ' into another project',
+          onclick: function(ev){ ev.stopPropagation(); openMergeModal(p); }
+        }, [(function(){ var d = el('span', { html: iconMerge() }); return d.firstChild; })()]),
+        el('button', {
+          type:'button', class:'switch__archive', title:'Archive project', 'aria-label':'Archive ' + p.name,
+          onclick: function(ev){ ev.stopPropagation(); archiveProject(p); }
+        }, [(function(){ var d = el('span', { html: iconArchive() }); return d.firstChild; })()]),
+        el('button', {
+          type:'button', class:'switch__delete', title:'Delete project', 'aria-label':'Delete ' + p.name,
+          onclick: function(ev){ ev.stopPropagation(); deleteProject(p); }
+        }, [(function(){ var d = el('span', { html: iconTrash() }); return d.firstChild; })()])
+      ]);
+      switchList.appendChild(btn);
+    });
+  }
+
+  function renderMain(){
+    var project = getActiveProject();
+    applyMainTheme(project);
+    updateBgControls(project);
+
+    var nameInput = document.getElementById('projectNameInput');
+    nameInput.value = project.name;
+    nameInput.oninput = function(){
+      project.name = nameInput.value || project.name;
+      saveData();
+      renderRail();
+    };
+
+    refreshProjectProfilePicker(project);
+
+    renderFilters(project);
+    renderGrid(project);
+  }
+
+  function refreshProjectProfilePicker(project){
+    var picker = document.getElementById('projectProfilePicker');
+    var select = document.getElementById('projectProfileSelect');
+    var dot = document.getElementById('projectProfileDot');
+
+    if(state.chromeProfiles.length === 0){
+      picker.style.display = 'none';
+      return;
+    }
+    picker.style.display = '';
+
+    select.innerHTML = '';
+    select.appendChild(el('option', { value:'' }, [document.createTextNode('No default profile')]));
+    state.chromeProfiles.forEach(function(profile){
+      select.appendChild(el('option', { value: profile.id }, [document.createTextNode(profileDisplayLabel(profile))]));
+    });
+    select.value = project.defaultChromeProfileId || '';
+
+    var current = getChromeProfileById(project.defaultChromeProfileId);
+    dot.style.background = current ? current.color : 'var(--text-muted)';
+
+    select.onchange = function(){
+      project.defaultChromeProfileId = select.value || null;
+      saveData();
+      var updated = getChromeProfileById(project.defaultChromeProfileId);
+      dot.style.background = updated ? updated.color : 'var(--text-muted)';
+      renderGrid(project); // tile badges reflect the project default when a tile has no override
+    };
+  }
+
+  function renderFilters(project){
+    var row = document.getElementById('filterRow');
+    row.innerHTML = '';
+    var options = [
+      { key:'all', label:'All' },
+      { key:'file', label:'Files' },
+      { key:'folder', label:'Folders' },
+      { key:'app', label:'Apps' },
+      { key:'url', label:'Links' }
+    ];
+    options.forEach(function(opt){
+      var count = opt.key === 'all' ? project.tiles.length : project.tiles.filter(function(t){ return t.type === opt.key; }).length;
+      var pill = el('button', {
+        type:'button',
+        class:'filter-pill' + (currentFilter === opt.key ? ' is-active' : ''),
+        onclick: function(){
+          currentFilter = opt.key;
+          project.lastFilter = opt.key;
+          saveData();
+          renderMain();
+        }
+      }, [document.createTextNode(opt.label + ' (' + count + ')')]);
+      row.appendChild(pill);
+    });
+  }
+
+  function renderGrid(project){
+    var area = document.getElementById('gridArea');
+    area.innerHTML = '';
+
+    var tiles = currentFilter === 'all' ? project.tiles : project.tiles.filter(function(t){ return t.type === currentFilter; });
+
+    if(project.tiles.length === 0){
+      area.appendChild(el('div', { class:'empty-state' }, [
+        (function(){ var d = el('div', { html: iconEmpty() }); return d.firstChild; })(),
+        el('h3', {}, [document.createTextNode('Nothing patched in yet')]),
+        el('p', {}, [document.createTextNode('Add the files, folders, apps, and links you use for "' + project.name + '" so they\'re one click away.')]),
+        el('button', { type:'button', class:'primary-btn', style:'margin:6px auto 0;', onclick: openAddModal }, [document.createTextNode('Add your first tile')])
+      ]));
+      return;
+    }
+
+    var grid = el('div', { class:'tile-grid' });
+
+    if(tiles.length === 0){
+      grid.appendChild(el('div', { class:'empty-state' }, [
+        el('p', {}, [document.createTextNode('No ' + currentFilter + ' tiles in this project yet.')])
+      ]));
+    } else {
+      tiles.forEach(function(tile){
+        grid.appendChild(renderTile(tile));
+      });
+    }
+
+    grid.appendChild(el('button', { type:'button', class:'add-tile', onclick: openAddModal }, [
+      (function(){ var d = el('div', { html: iconPlus() }); return d.firstChild; })(),
+      document.createTextNode('Add tile')
+    ]));
+
+    area.appendChild(grid);
+  }
+
+  function tileIconMarkup(tile){
+    var meta = TYPE_META[tile.type];
+    if(tile.customIcon) return '<img src="' + tile.customIcon + '" alt="">';
+    if(tile.autoThumbnail) return '<img src="' + tile.autoThumbnail + '" alt="">';
+    return meta.icon();
+  }
+
+  function renderTile(tile){
+    var profileBadgeChildren = [];
+    if(tile.type === 'url'){
+      var effectiveProfile = getEffectiveChromeProfile(tile, getActiveProject());
+      if(effectiveProfile){
+        profileBadgeChildren = [el('span', {
+          class:'tile__profile-badge', style:'background:' + effectiveProfile.color + ';',
+          title:'Opens in ' + effectiveProfile.label + '\u2019s Chrome profile'
+        })];
+      }
+    }
+    var card = el('a', {
+      href:'#',
+      class:'tile',
+      draggable:'false', // dragging is initiated from the dedicated grip only, see below
+      onclick: function(ev){ ev.preventDefault(); openTile(tile); },
+      ondragover: function(ev){
+        ev.preventDefault();
+        if(isFileDrag(ev)) return; // a real OS file/folder being dragged in — handled globally, not as a reorder
+        if(ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+        if(draggedTileId && draggedTileId !== tile.id) card.classList.add('drag-over');
+      },
+      ondragleave: function(){
+        card.classList.remove('drag-over');
+      },
+      ondrop: function(ev){
+        ev.preventDefault();
+        card.classList.remove('drag-over');
+        if(isFileDrag(ev)) return; // let the window-level handler add it as a new tile instead
+        var fromId = draggedTileId || (ev.dataTransfer ? ev.dataTransfer.getData('text/plain') : null);
+        if(fromId) moveTile(fromId, tile.id);
+      }
+    }, [
+      el('div', { class:'tile__header' }, [
+        el('span', {
+          class:'tile__grip',
+          html: iconGrip(),
+          title:'Drag to reorder',
+          'aria-label':'Drag to reorder ' + tile.label,
+          draggable:'true',
+          ondragstart: function(ev){
+            draggedTileId = tile.id;
+            draggedTileSourceProjectId = state.activeProjectId;
+            if(ev.dataTransfer){
+              ev.dataTransfer.effectAllowed = 'move';
+              try{ ev.dataTransfer.setData('text/plain', tile.id); }catch(err){ /* module-level var still covers this */ }
+            }
+            card.classList.add('is-dragging');
+          },
+          ondragend: function(){
+            card.classList.remove('is-dragging');
+            Array.prototype.forEach.call(document.querySelectorAll('.tile'), function(node){ node.classList.remove('drag-over'); });
+            Array.prototype.forEach.call(document.querySelectorAll('.switch'), function(node){ node.classList.remove('drag-over-tile'); });
+            draggedTileId = null;
+            draggedTileSourceProjectId = null;
+          }
+        }),
+        el('div', { class:'tile__icon-wrap', html: tileIconMarkup(tile) }, profileBadgeChildren)
+      ]),
+      el('div', { class:'tile__label' }, [document.createTextNode(tile.label)]),
+      el('div', { class:'tile__path' }, [document.createTextNode(tile.target)]),
+      el('div', { class:'tile__actions' }, [
+        el('button', {
+          type:'button', class:'tile__action-btn', title:'Copy path', 'aria-label':'Copy path for ' + tile.label,
+          onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); copyText(tile.target); }
+        }, [(function(){ var d = el('span', { html: iconCopy() }); return d.firstChild; })()]),
+        el('button', {
+          type:'button', class:'tile__action-btn', title:'Edit', 'aria-label':'Edit ' + tile.label,
+          onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); openEditModal(tile); }
+        }, [(function(){ var d = el('span', { html: iconPencil() }); return d.firstChild; })()])
+      ])
+    ]);
+    return card;
+  }
+
+  // ---------- opening tiles ----------
+  function openTile(tile){
+    if(tile.type === 'url'){
+      var owningProject = state.projects.find(function(p){ return p.tiles.indexOf(tile) !== -1; }) || getActiveProject();
+      var profile = getEffectiveChromeProfile(tile, owningProject);
+      var opener = profile
+        ? window.projqik.openUrlWithProfile(tile.target, profile.directory)
+        : window.projqik.openExternal(tile.target);
+      opener.then(function(result){
+        if(!result.ok) showToast(result.error || 'Could not open that link.', true);
+      }).catch(function(err){
+        console.error('ProjQik: opening link failed', err);
+        showToast('Could not open that link.', true);
+      });
+      return;
+    }
+
+    var path = (tile.target || '').trim();
+    if(path.charAt(0) !== '/'){
+      // Not a real absolute path (e.g. hand-typed rather than chosen via Browse).
+      openEditModal(tile);
+      showToast('"' + tile.label + '" doesn\u2019t have a full path yet. Use Browse to pick it from Finder.', true);
+      return;
+    }
+
+    window.projqik.openPath(path).then(function(result){
+      if(!result.ok){
+        showToast('Couldn\u2019t open "' + tile.label + '" \u2014 ' + (result.error || 'it may have moved or been deleted.'), true);
+      }
+    }).catch(function(err){
+      console.error('ProjQik: openPath failed', err);
+      showToast('Couldn\u2019t open "' + tile.label + '".', true);
+    });
+  }
+
+  function copyText(text){
+    function done(ok){
+      showToast(ok ? 'Path copied' : 'Could not copy — select manually: ' + text, !ok);
+    }
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(function(){ done(true); }).catch(function(err){
+        console.error('ProjQik: clipboard write failed', err);
+        done(fallbackCopy(text));
+      });
+    } else {
+      done(fallbackCopy(text));
+    }
+  }
+
+  function fallbackCopy(text){
+    try{
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      var ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    }catch(err){
+      console.error('ProjQik: fallback copy failed', err);
+      return false;
+    }
+  }
+
+  // ---------- background images ----------
+  function updateBgControls(project){
+    var removeBtn = document.getElementById('bgRemoveBtn');
+    var adjustBtn = document.getElementById('bgAdjustBtn');
+    removeBtn.style.display = project.background ? '' : 'none';
+    adjustBtn.style.display = project.background ? '' : 'none';
+  }
+
+  function compressImage(file, maxDim){
+    maxDim = maxDim || 1920;
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(){
+        var img = new Image();
+        img.onload = function(){
+          var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          var w = Math.max(1, Math.round(img.width * scale));
+          var h = Math.max(1, Math.round(img.height * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext('2d');
+          if(!ctx){ reject(new Error('Canvas is not supported in this browser')); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          try{
+            resolve(canvas.toDataURL('image/jpeg', 0.82));
+          }catch(err){ reject(err); }
+        };
+        img.onerror = function(){ reject(new Error('Could not read that image')); };
+        img.src = String(reader.result);
+      };
+      reader.onerror = function(){ reject(reader.error || new Error('Could not read that file')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function compressDataUrl(dataUrl, maxDim){
+    maxDim = maxDim || 200;
+    return new Promise(function(resolve, reject){
+      var img = new Image();
+      img.onload = function(){
+        var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        if(!ctx){ reject(new Error('Canvas is not supported in this browser')); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        try{
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        }catch(err){ reject(err); }
+      };
+      img.onerror = function(){ reject(new Error('Could not process that image')); };
+      img.src = dataUrl;
+    });
+  }
+
+  document.getElementById('bgSetBtn').addEventListener('click', function(){
+    document.getElementById('bgFileInput').click();
+  });
+
+  document.getElementById('bgFileInput').addEventListener('change', function(ev){
+    var file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if(!file) return;
+    if(!/^image\//.test(file.type)){
+      showToast('Please choose an image file (JPG, PNG, etc.)', true);
+      return;
+    }
+    compressImage(file).then(function(dataUrl){
+      return window.projqik.saveBackgroundAsset(dataUrl).then(function(result){
+        var project = getActiveProject();
+        project.background = (result && result.ok) ? result.url : dataUrl; // fall back to the raw data URL if saving to the library fails
+        saveData();
+        applyMainTheme(project);
+        updateBgControls(project);
+        if(!storageBroken){ showToast('Background set for "' + project.name + '"'); }
+      });
+    }).catch(function(err){
+      console.error('ProjQik: background image processing failed', err);
+      showToast('Could not use that image \u2014 try a different file.', true);
+    });
+  });
+
+  document.getElementById('bgRemoveBtn').addEventListener('click', function(){
+    var project = getActiveProject();
+    delete project.background;
+    delete project.backgroundSettings;
+    saveData();
+    applyMainTheme(project);
+    updateBgControls(project);
+    showToast('Background removed');
+  });
+
+  var backgroundLibraryOverlay = document.getElementById('backgroundLibraryOverlay');
+  document.getElementById('bgLibraryBtn').addEventListener('click', function(){
+    var grid = document.getElementById('backgroundLibraryGrid');
+    grid.innerHTML = '<div class="asset-library-grid__empty">Loading\u2026</div>';
+    backgroundLibraryOverlay.classList.add('show');
+    window.projqik.listBackgroundAssets().then(function(result){
+      grid.innerHTML = '';
+      var files = (result && result.ok) ? result.files : [];
+      if(files.length === 0){
+        grid.appendChild(el('div', { class:'asset-library-grid__empty' }, [document.createTextNode('No backgrounds in your library yet \u2014 use "Set background image" to add one.')]));
+        return;
+      }
+      files.forEach(function(f){
+        grid.appendChild(el('button', {
+          type:'button', class:'asset-library-item', title:f.filename,
+          onclick: function(){
+            var project = getActiveProject();
+            project.background = f.url;
+            saveData();
+            applyMainTheme(project);
+            updateBgControls(project);
+            backgroundLibraryOverlay.classList.remove('show');
+            showToast('Background set for "' + project.name + '"');
+          }
+        }, [el('img', { src:f.url, alt:'' })]));
+      });
+    }).catch(function(err){
+      console.error('ProjQik: listBackgroundAssets failed', err);
+      grid.innerHTML = '';
+      grid.appendChild(el('div', { class:'asset-library-grid__empty' }, [document.createTextNode('Could not load your background library.')]));
+    });
+  });
+  document.getElementById('backgroundLibraryCloseBtn').addEventListener('click', function(){
+    backgroundLibraryOverlay.classList.remove('show');
+  });
+  backgroundLibraryOverlay.addEventListener('click', function(ev){
+    if(ev.target === backgroundLibraryOverlay) backgroundLibraryOverlay.classList.remove('show');
+  });
+
+  // ---------- background adjust dialog ----------
+  var bgAdjustOverlay = document.getElementById('bgAdjustOverlay');
+  var bgFitSegmented = document.getElementById('bgFitSegmented');
+  var bgPositionGrid = document.getElementById('bgPositionGrid');
+  var bgDarkness = document.getElementById('bgDarkness');
+  var bgDarknessValue = document.getElementById('bgDarknessValue');
+
+  function refreshBgAdjustUI(project){
+    var bg = getBgSettings(project);
+    Array.prototype.forEach.call(bgFitSegmented.querySelectorAll('button'), function(btn){
+      btn.classList.toggle('is-active', btn.dataset.fit === bg.fit);
+    });
+    Array.prototype.forEach.call(bgPositionGrid.querySelectorAll('button'), function(btn){
+      btn.classList.toggle('is-active', btn.dataset.position === bg.position);
+    });
+    bgDarkness.value = bg.darkness;
+    bgDarknessValue.textContent = bg.darkness + '%';
+  }
+
+  function updateBgSetting(key, value){
+    var project = getActiveProject();
+    project.backgroundSettings = getBgSettings(project);
+    project.backgroundSettings[key] = value;
+    saveData();
+    applyMainTheme(project);
+  }
+
+  document.getElementById('bgAdjustBtn').addEventListener('click', function(){
+    refreshBgAdjustUI(getActiveProject());
+    bgAdjustOverlay.classList.add('show');
+  });
+
+  document.getElementById('bgAdjustDoneBtn').addEventListener('click', function(){
+    bgAdjustOverlay.classList.remove('show');
+  });
+
+  bgAdjustOverlay.addEventListener('click', function(ev){
+    if(ev.target === bgAdjustOverlay) bgAdjustOverlay.classList.remove('show');
+  });
+
+  var mergeOverlay = document.getElementById('mergeOverlay');
+  document.getElementById('mergeCancelBtn').addEventListener('click', function(){
+    mergeOverlay.classList.remove('show');
+    mergeSourceProject = null;
+  });
+  mergeOverlay.addEventListener('click', function(ev){
+    if(ev.target === mergeOverlay){
+      mergeOverlay.classList.remove('show');
+      mergeSourceProject = null;
+    }
+  });
+  document.getElementById('mergeConfirmBtn').addEventListener('click', function(){
+    if(!mergeSourceProject) return;
+    var destId = document.getElementById('mergeDestSelect').value;
+    var dest = state.projects.find(function(p){ return p.id === destId; });
+    if(!dest) return;
+    var source = mergeSourceProject;
+    var confirmed = window.confirm('Merge "' + source.name + '" into "' + dest.name + '"? "' + source.name + '" will be removed once its tiles are moved over.');
+    if(!confirmed) return;
+    mergeOverlay.classList.remove('show');
+    mergeSourceProject = null;
+    mergeProjectInto(source, dest);
+  });
+
+  Array.prototype.forEach.call(bgFitSegmented.querySelectorAll('button'), function(btn){
+    btn.addEventListener('click', function(){
+      updateBgSetting('fit', btn.dataset.fit);
+      refreshBgAdjustUI(getActiveProject());
+    });
+  });
+
+  Array.prototype.forEach.call(bgPositionGrid.querySelectorAll('button'), function(btn){
+    btn.addEventListener('click', function(){
+      updateBgSetting('position', btn.dataset.position);
+      refreshBgAdjustUI(getActiveProject());
+    });
+  });
+
+  bgDarkness.addEventListener('input', function(){
+    var value = parseInt(bgDarkness.value, 10);
+    bgDarknessValue.textContent = value + '%';
+    updateBgSetting('darkness', value);
+  });
+
+  // ---------- toast ----------
+  var toastTimer = null;
+  function showToast(message, isError, action){
+    var t = document.getElementById('toast');
+    t.textContent = message;
+    t.classList.toggle('is-error', !!isError);
+    if(action && action.label && typeof action.onClick === 'function'){
+      var btn = el('button', {
+        type:'button', class:'toast__action',
+        onclick: function(ev){
+          ev.stopPropagation();
+          t.classList.remove('show');
+          clearTimeout(toastTimer);
+          action.onClick();
+        }
+      }, [document.createTextNode(action.label)]);
+      t.appendChild(btn);
+    }
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, action ? 7000 : 3200);
+  }
+
+  // ---------- modal ----------
+  var overlay = document.getElementById('modalOverlay');
+  var form = document.getElementById('tileForm');
+  var labelInput = document.getElementById('tileLabel');
+  var targetInput = document.getElementById('tileTarget');
+  var targetLabelEl = document.getElementById('targetLabel');
+  var targetHintEl = document.getElementById('targetHint');
+  var typeSegmented = document.getElementById('typeSegmented');
+  var deleteBtn = document.getElementById('deleteTileBtn');
+  var modalTitle = document.getElementById('modalTitle');
+  var browseBtn = document.getElementById('browseBtn');
+  var iconPickerPreview = document.getElementById('iconPickerPreview');
+  var iconUploadBtn = document.getElementById('iconUploadBtn');
+  var iconBrowseBtn = document.getElementById('iconBrowseBtn');
+  var iconResetBtn = document.getElementById('iconResetBtn');
+  var iconFileInput = document.getElementById('iconFileInput');
+  var iconLibraryGrid = document.getElementById('iconLibraryGrid');
+  var pendingCustomIcon = null; // a pqasset:// library reference (or, for older saved tiles, a raw data URL), or null to use the default/auto icon
+  var pendingChromeProfileId = null; // per-tile Chrome profile override, or null to use the project default
+
+  function renderIconPickerPreview(){
+    if(pendingCustomIcon){
+      iconPickerPreview.innerHTML = '<img src="' + pendingCustomIcon + '" alt="">';
+      iconResetBtn.style.display = '';
+      return;
+    }
+    if(currentPreviewInfo && currentPreviewInfo.imageDataUrl){
+      iconPickerPreview.innerHTML = '<img src="' + currentPreviewInfo.imageDataUrl + '" alt="">';
+    } else if(currentPreviewInfo && currentPreviewInfo.nativeIconDataUrl){
+      iconPickerPreview.innerHTML = '<img src="' + currentPreviewInfo.nativeIconDataUrl + '" alt="">';
+    } else {
+      iconPickerPreview.innerHTML = TYPE_META[currentType] ? TYPE_META[currentType].icon() : iconFile();
+    }
+    iconResetBtn.style.display = 'none';
+  }
+
+  iconUploadBtn.addEventListener('click', function(){ iconFileInput.click(); });
+
+  iconFileInput.addEventListener('change', function(ev){
+    var file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if(!file) return;
+    if(!/^image\//.test(file.type)){
+      showToast('Please choose an image file (JPG, PNG, etc.)', true);
+      return;
+    }
+    compressImage(file, 200).then(function(dataUrl){
+      return window.projqik.saveIconAsset(dataUrl).then(function(result){
+        pendingCustomIcon = (result && result.ok) ? result.url : dataUrl; // fall back to the raw data URL if saving to the library fails
+        renderIconPickerPreview();
+      });
+    }).catch(function(err){
+      console.error('ProjQik: icon image processing failed', err);
+      showToast('Could not use that image \u2014 try a different file.', true);
+    });
+  });
+
+  iconBrowseBtn.addEventListener('click', function(){
+    var showing = iconLibraryGrid.style.display !== 'none';
+    if(showing){
+      iconLibraryGrid.style.display = 'none';
+      return;
+    }
+    iconLibraryGrid.innerHTML = '<div class="asset-library-grid__empty">Loading\u2026</div>';
+    iconLibraryGrid.style.display = '';
+    window.projqik.listIconAssets().then(function(result){
+      iconLibraryGrid.innerHTML = '';
+      var files = (result && result.ok) ? result.files : [];
+      if(files.length === 0){
+        iconLibraryGrid.appendChild(el('div', { class:'asset-library-grid__empty' }, [document.createTextNode('No icons in your library yet \u2014 upload one to get started.')]));
+        return;
+      }
+      files.forEach(function(f){
+        iconLibraryGrid.appendChild(el('button', {
+          type:'button', class:'asset-library-item', title:f.filename,
+          onclick: function(){
+            pendingCustomIcon = f.url;
+            renderIconPickerPreview();
+            iconLibraryGrid.style.display = 'none';
+          }
+        }, [el('img', { src:f.url, alt:'' })]));
+      });
+    }).catch(function(err){
+      console.error('ProjQik: listIconAssets failed', err);
+      iconLibraryGrid.innerHTML = '';
+      iconLibraryGrid.appendChild(el('div', { class:'asset-library-grid__empty' }, [document.createTextNode('Could not load your icon library.')]));
+    });
+  });
+
+  iconResetBtn.addEventListener('click', function(){
+    pendingCustomIcon = null;
+    renderIconPickerPreview();
+  });
+
+  // ---------- preview panel ----------
+  var previewPanel = document.getElementById('previewPanel');
+  var previewEmptyState = document.getElementById('previewEmptyState');
+  var previewErrorState = document.getElementById('previewErrorState');
+  var previewErrorText = document.getElementById('previewErrorText');
+  var previewContent = document.getElementById('previewContent');
+  var previewThumb = document.getElementById('previewThumb');
+  var previewName = document.getElementById('previewName');
+  var previewMeta = document.getElementById('previewMeta');
+  var previewPath = document.getElementById('previewPath');
+  var previewRequestToken = 0; // guards against a slower older lookup overwriting a newer one
+
+  function formatBytes(bytes){
+    if(bytes === null || bytes === undefined) return '';
+    if(bytes < 1024) return bytes + ' B';
+    var units = ['KB', 'MB', 'GB', 'TB'];
+    var value = bytes / 1024, i = 0;
+    while(value >= 1024 && i < units.length - 1){ value /= 1024; i++; }
+    return (value < 10 ? value.toFixed(1) : Math.round(value)) + ' ' + units[i];
+  }
+
+  function formatModified(iso){
+    try{
+      return new Date(iso).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+    }catch(err){
+      return '';
+    }
+  }
+
+  var currentPreviewInfo = null;
+
+  function setPreviewState(state){
+    previewEmptyState.style.display = state === 'empty' ? '' : 'none';
+    previewErrorState.style.display = state === 'error' ? '' : 'none';
+    previewContent.style.display = state === 'content' ? '' : 'none';
+  }
+
+  function showPreviewEmpty(){
+    previewRequestToken++;
+    currentPreviewInfo = null;
+    setPreviewState('empty');
+    renderIconPickerPreview();
+  }
+
+  function showPreviewError(message){
+    currentPreviewInfo = null;
+    previewErrorText.textContent = message || 'Can\u2019t find anything at that path.';
+    setPreviewState('error');
+    renderIconPickerPreview();
+  }
+
+  function findMatchingIcon(targetPath){
+    if(!targetPath) return null;
+    var match = null;
+    state.projects.forEach(function(project){
+      project.tiles.forEach(function(t){
+        if(match) return;
+        if(editingTileId && t.id === editingTileId) return; // don't match against the tile being edited itself
+        if(t.target === targetPath && (t.customIcon || t.autoThumbnail)){
+          match = t.customIcon || t.autoThumbnail;
+        }
+      });
+    });
+    return match;
+  }
+
+  function showPreviewInfo(info){
+    currentPreviewInfo = info;
+    if(info.imageDataUrl){
+      previewThumb.innerHTML = '<img src="' + info.imageDataUrl + '" alt="">';
+    } else if(info.nativeIconDataUrl){
+      previewThumb.innerHTML = '<img src="' + info.nativeIconDataUrl + '" alt="" class="preview-thumb__native-icon">';
+    } else {
+      previewThumb.innerHTML = TYPE_META[currentType] ? TYPE_META[currentType].icon() : iconFile();
+    }
+    previewName.textContent = info.name;
+    var metaParts = [info.kind];
+    if(info.sizeBytes !== null && info.sizeBytes !== undefined) metaParts.push(formatBytes(info.sizeBytes));
+    if(info.modifiedAt) metaParts.push('Modified ' + formatModified(info.modifiedAt));
+    previewMeta.textContent = metaParts.join(' \u2022 ');
+    previewPath.textContent = targetInput.value.trim();
+    setPreviewState('content');
+    if(!pendingCustomIcon){
+      var matched = findMatchingIcon(targetInput.value.trim());
+      if(matched){
+        pendingCustomIcon = matched;
+        showToast('Icon reused from another project');
+      }
+    }
+    renderIconPickerPreview();
+  }
+
+  function refreshPreview(rawPath){
+    var pathValue = (rawPath || '').trim();
+    if(currentType === 'url' || !pathValue || pathValue.charAt(0) !== '/'){
+      showPreviewEmpty();
+      return;
+    }
+    var token = ++previewRequestToken;
+    window.projqik.getPathInfo(pathValue).then(function(info){
+      if(token !== previewRequestToken) return; // a newer lookup has since started; discard this one
+      if(!info || !info.exists){
+        showPreviewError((info && info.error) || 'Can\u2019t find anything at that path.');
+        return;
+      }
+      showPreviewInfo(info);
+    }).catch(function(err){
+      if(token !== previewRequestToken) return;
+      console.error('ProjQik: getPathInfo failed', err);
+      showPreviewError('Could not read that path.');
+    });
+  }
+
+  var previewDebounceTimer = null;
+  targetInput.addEventListener('input', function(){
+    clearTimeout(previewDebounceTimer);
+    var value = targetInput.value;
+    previewDebounceTimer = setTimeout(function(){ refreshPreview(value); }, 450);
+  });
+
+  function refreshTileProfileField(){
+    var field = document.getElementById('tileProfileField');
+    var select = document.getElementById('tileProfileSelect');
+    var noneYet = document.getElementById('tileProfileNoneYet');
+    var selectWrap = document.getElementById('tileProfileSelectWrap');
+    if(currentType !== 'url'){
+      field.style.display = 'none';
+      return;
+    }
+    field.style.display = '';
+    if(state.chromeProfiles.length === 0){
+      noneYet.style.display = '';
+      selectWrap.style.display = 'none';
+      return;
+    }
+    noneYet.style.display = 'none';
+    selectWrap.style.display = '';
+    select.innerHTML = '';
+    var activeProject = getActiveProject();
+    var projectDefault = activeProject ? getChromeProfileById(activeProject.defaultChromeProfileId) : null;
+    var defaultOptionText = 'Use project default' + (projectDefault ? ' (' + projectDefault.label + ')' : ' (none set)');
+    select.appendChild(el('option', { value:'' }, [document.createTextNode(defaultOptionText)]));
+    state.chromeProfiles.forEach(function(profile){
+      select.appendChild(el('option', { value: profile.id }, [document.createTextNode(profileDisplayLabel(profile))]));
+    });
+    select.value = pendingChromeProfileId || '';
+    select.onchange = function(){ pendingChromeProfileId = select.value || null; };
+  }
+
+  function setType(type){
+    currentType = type;
+    Array.prototype.forEach.call(typeSegmented.querySelectorAll('button'), function(btn){
+      btn.classList.toggle('is-active', btn.dataset.type === type);
+    });
+    var meta = TYPE_META[type];
+    targetLabelEl.textContent = meta.targetLabel;
+    targetInput.placeholder = type === 'url' ? 'https://example.com/...' : '/Users/you/Documents/...';
+    targetHintEl.textContent = meta.hint;
+    browseBtn.style.display = type === 'url' ? 'none' : '';
+    previewPanel.hidden = type === 'url';
+    if(type !== 'url') refreshPreview(targetInput.value);
+    renderIconPickerPreview();
+    refreshTileProfileField();
+  }
+
+  Array.prototype.forEach.call(typeSegmented.querySelectorAll('button'), function(btn){
+    btn.addEventListener('click', function(){ setType(btn.dataset.type); });
+  });
+
+  browseBtn.addEventListener('click', function(){
+    window.projqik.browsePath(currentType).then(function(picked){
+      if(!picked) return; // user cancelled the dialog
+      var name = picked.split('/').pop();
+      if(!labelInput.value.trim()) labelInput.value = name;
+      targetInput.value = picked;
+      refreshPreview(picked);
+    }).catch(function(err){
+      console.error('ProjQik: browsePath failed', err);
+      showToast('Could not open the file picker.', true);
+    });
+  });
+
+  document.getElementById('openProfileSettingsFromTile').addEventListener('click', function(){
+    closeModal();
+    refreshSettingsUI();
+    settingsOverlay.classList.add('show');
+  });
+
+  function openAddModal(){
+    editingTileId = null;
+    modalTitle.textContent = 'Add a tile';
+    labelInput.value = '';
+    targetInput.value = '';
+    pendingCustomIcon = null;
+    pendingChromeProfileId = null;
+    deleteBtn.style.display = 'none';
+    setType('file');
+    overlay.classList.add('show');
+    labelInput.focus();
+  }
+
+  function openEditModal(tile){
+    editingTileId = tile.id;
+    modalTitle.textContent = 'Edit tile';
+    labelInput.value = tile.label;
+    targetInput.value = tile.target;
+    pendingCustomIcon = tile.customIcon || null;
+    pendingChromeProfileId = tile.chromeProfileId || null;
+    deleteBtn.style.display = '';
+    setType(tile.type);
+    overlay.classList.add('show');
+    labelInput.focus();
+  }
+
+  function closeModal(){
+    overlay.classList.remove('show');
+  }
+
+  document.getElementById('addTileBtn').addEventListener('click', openAddModal);
+  document.getElementById('addProjectBtn').addEventListener('click', addProject);
+
+  function applyRailWidth(px){
+    var clamped = Math.max(RAIL_WIDTH_MIN, Math.min(RAIL_WIDTH_MAX, px));
+    document.getElementById('switchRail').style.width = clamped + 'px';
+    return clamped;
+  }
+
+  function applyTileSize(size){
+    document.body.setAttribute('data-tile-size', (size === 'small' || size === 'large') ? size : 'medium');
+  }
+
+  // ---------- sidebar resize ----------
+  (function(){
+    var handle = document.getElementById('railResizeHandle');
+    var rail = document.getElementById('switchRail');
+    var resizing = false;
+    var startX = 0;
+    var startWidth = 0;
+
+    applyRailWidth(state.railWidth);
+
+    handle.addEventListener('mousedown', function(ev){
+      resizing = true;
+      startX = ev.clientX;
+      startWidth = rail.getBoundingClientRect().width;
+      handle.classList.add('is-resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      ev.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(ev){
+      if(!resizing) return;
+      applyRailWidth(startWidth + (ev.clientX - startX));
+    });
+
+    document.addEventListener('mouseup', function(){
+      if(!resizing) return;
+      resizing = false;
+      handle.classList.remove('is-resizing');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      state.railWidth = Math.round(rail.getBoundingClientRect().width);
+      saveData();
+    });
+  })();
+
+  document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(ev){ if(ev.target === overlay) closeModal(); });
+  document.addEventListener('keydown', function(ev){
+    if(ev.key !== 'Escape') return;
+    if(overlay.classList.contains('show')) closeModal();
+    if(bgAdjustOverlay.classList.contains('show')) bgAdjustOverlay.classList.remove('show');
+    if(settingsOverlay.classList.contains('show')) settingsOverlay.classList.remove('show');
+    if(mergeOverlay.classList.contains('show')){ mergeOverlay.classList.remove('show'); mergeSourceProject = null; }
+    if(backgroundLibraryOverlay.classList.contains('show')) backgroundLibraryOverlay.classList.remove('show');
+  });
+
+  deleteBtn.addEventListener('click', function(){
+    if(!editingTileId) return;
+    var confirmed = window.confirm('Delete this tile? You\u2019ll have a few seconds to undo it after.');
+    if(!confirmed) return;
+    var project = getActiveProject();
+    var tileIndex = project.tiles.findIndex(function(t){ return t.id === editingTileId; });
+    var deletedTile = project.tiles[tileIndex];
+    project.tiles = project.tiles.filter(function(t){ return t.id !== editingTileId; });
+    saveData();
+    closeModal();
+    renderRail();
+    renderMain();
+    showToast('Tile deleted', false, {
+      label: 'Undo',
+      onClick: function(){
+        var insertAt = Math.min(tileIndex, project.tiles.length);
+        if(insertAt < 0) insertAt = project.tiles.length;
+        project.tiles.splice(insertAt, 0, deletedTile);
+        saveData();
+        renderRail();
+        renderMain();
+        showToast('"' + deletedTile.label + '" restored');
+      }
+    });
+  });
+
+  form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var label = labelInput.value.trim();
+    var target = targetInput.value.trim();
+    if(!label || !target){ return; }
+
+    if(currentType === 'url' && !/^https?:\/\//i.test(target) && target.indexOf('file://') !== 0){
+      target = 'https://' + target;
+    }
+
+    var project = getActiveProject();
+
+    function applyProfileField(tileObj){
+      if(currentType === 'url' && pendingChromeProfileId){
+        tileObj.chromeProfileId = pendingChromeProfileId;
+      } else {
+        delete tileObj.chromeProfileId;
+      }
+    }
+
+    function applyIconFields(tileObj, done){
+      if(pendingCustomIcon){
+        tileObj.customIcon = pendingCustomIcon;
+        delete tileObj.autoThumbnail;
+        done();
+        return;
+      }
+      delete tileObj.customIcon;
+      if(currentPreviewInfo && currentPreviewInfo.imageDataUrl){
+        compressDataUrl(currentPreviewInfo.imageDataUrl, 200).then(function(thumb){
+          tileObj.autoThumbnail = thumb;
+          done();
+        }).catch(function(){
+          delete tileObj.autoThumbnail;
+          done();
+        });
+      } else {
+        delete tileObj.autoThumbnail;
+        done();
+      }
+    }
+
+    function finishSave(tileObj, isNew){
+      applyProfileField(tileObj);
+      applyIconFields(tileObj, function(){
+        saveData();
+        closeModal();
+        renderRail();
+        renderMain();
+        showToast(isNew ? 'Tile added' : 'Tile updated');
+      });
+    }
+
+    if(editingTileId){
+      var existing = project.tiles.find(function(t){ return t.id === editingTileId; });
+      if(existing){
+        existing.label = label;
+        existing.target = target;
+        existing.type = currentType;
+        finishSave(existing, false);
+      }
+    } else {
+      var newTile = { id: uid(), label: label, target: target, type: currentType };
+      project.tiles.push(newTile);
+      finishSave(newTile, true);
+    }
+  });
+
+  // ---------- backup: export / import ----------
+  function exportData(){
+    window.projqik.exportBackup(JSON.stringify(state, null, 2)).then(function(result){
+      if(!result.ok){
+        showToast(result.error || 'Could not create backup file', true);
+        return;
+      }
+      if(!result.cancelled) showToast('Backup saved');
+    }).catch(function(err){
+      console.error('ProjQik: export failed', err);
+      showToast('Could not create backup file', true);
+    });
+  }
+
+  function importData(){
+    window.projqik.importBackup().then(function(result){
+      if(!result.ok){
+        showToast(result.error || 'Could not restore that backup', true);
+        return;
+      }
+      if(result.cancelled) return;
+      try{
+        var parsed = JSON.parse(result.stateJson);
+        if(!isValidData(parsed)) throw new Error('File is not a valid ProjQik backup');
+        state = migrateThemeIndexes(parsed);
+        if(typeof state.railWidth !== 'number') state.railWidth = 260;
+        if(typeof state.appTheme !== 'string') state.appTheme = 'slate';
+        if(typeof state.accentSaturation !== 'number') state.accentSaturation = null;
+        if(typeof state.tileSize !== 'string') state.tileSize = 'medium';
+        if(typeof state.projectOrderCustomized !== 'boolean') state.projectOrderCustomized = true;
+        if(!Array.isArray(state.chromeProfiles)) state.chromeProfiles = [];
+        if(!state.projects.some(function(p){ return p.id === state.activeProjectId; })){
+          state.activeProjectId = state.projects[0].id;
+        }
+        saveData();
+        applyAppTheme(state.appTheme);
+        applyTileSize(state.tileSize);
+        applyRailWidth(state.railWidth);
+        refreshSettingsUI();
+        renderRail();
+        renderMain();
+        showToast('Backup restored');
+      }catch(err){
+        console.error('ProjQik: import failed', err);
+        showToast('Could not restore that file \u2014 it doesn\u2019t look like a ProjQik backup.', true);
+      }
+    }).catch(function(err){
+      console.error('ProjQik: import failed', err);
+      showToast('Could not read that file', true);
+    });
+  }
+
+  var APP_THEMES = [
+    { id:'graphite', label:'Graphite (bright blue)', swatch:'#2E8EFF', accentL:64 },
+    { id:'slate', label:'Slate', swatch:'#141922', accentL:57 },
+    { id:'paper', label:'Paper', swatch:'#F3F0E8', accentL:47 }
+  ];
+
+  function getAppTheme(themeId){
+    var found = null;
+    for(var i = 0; i < APP_THEMES.length; i++){
+      if(APP_THEMES[i].id === themeId) found = APP_THEMES[i];
+    }
+    return found || APP_THEMES[1]; // Slate as the safe fallback
+  }
+
+  function applyAppTheme(themeId){
+    document.documentElement.setAttribute('data-app-theme', themeId);
+    applyAccentSaturation();
+  }
+
+  function applyAccentSaturation(){
+    if(typeof state.accentSaturation === 'number'){
+      document.documentElement.style.setProperty('--accent-l', state.accentSaturation + '%');
+    } else {
+      document.documentElement.style.removeProperty('--accent-l');
+    }
+  }
+
+  function iconMail(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>'; }
+  function iconExit(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>'; }
+
+  function buildRailFooter(){
+    var footer = el('div', { class:'rail-footer' });
+
+    var utilityRow = el('div', { class:'rail-utility-row' });
+    utilityRow.appendChild(el('button', {
+      type:'button', class:'rail-utility-btn', title:'Send feedback', 'aria-label':'Email Freedom Forge AI',
+      onclick: function(){
+        window.projqik.contactSupport().catch(function(err){
+          console.error('ProjQik: contactSupport failed', err);
+          showToast('Could not open your email app.', true);
+        });
+      }
+    }, [(function(){ var d = el('span', { html: iconMail() }); return d.firstChild; })()]));
+    utilityRow.appendChild(el('button', {
+      type:'button', class:'rail-utility-btn', title:'Exit ProjQik', 'aria-label':'Exit ProjQik',
+      onclick: function(){
+        window.projqik.quitApp().catch(function(err){
+          console.error('ProjQik: quitApp failed', err);
+        });
+      }
+    }, [(function(){ var d = el('span', { html: iconExit() }); return d.firstChild; })()]));
+    footer.appendChild(utilityRow);
+
+    footer.appendChild(el('div', { class:'rail-version', id:'railVersion' }, [document.createTextNode('')]));
+    document.getElementById('switchRail').appendChild(footer);
+
+    window.projqik.getAppVersion().then(function(version){
+      document.getElementById('railVersion').textContent = 'v' + version;
+    }).catch(function(err){
+      console.error('ProjQik: getAppVersion failed', err);
+    });
+  }
+
+  // ---------- desktop drag-and-drop: adding files/folders/apps by dragging them onto the window ----------
+  var dropOverlay = document.getElementById('dropOverlay');
+  var dropOverlayProjectName = document.getElementById('dropOverlayProjectName');
+  var dragEnterCounter = 0;
+
+  function isFileDrag(ev){
+    return !!(ev.dataTransfer && ev.dataTransfer.types && Array.prototype.indexOf.call(ev.dataTransfer.types, 'Files') !== -1);
+  }
+
+  function addTileFromDroppedPath(absolutePath){
+    return window.projqik.getPathInfo(absolutePath).then(function(info){
+      if(!info || !info.exists){
+        return { ok:false, name: absolutePath.split('/').pop() };
+      }
+      var type = info.kind === 'Application' ? 'app' : (info.isDirectory ? 'folder' : 'file');
+      var tile = { id: uid(), label: info.name, target: absolutePath, type: type };
+      if(info.imageDataUrl){
+        return compressDataUrl(info.imageDataUrl, 200).then(function(thumb){
+          tile.autoThumbnail = thumb;
+          return { ok:true, tile: tile };
+        }).catch(function(){
+          return { ok:true, tile: tile };
+        });
+      }
+      return { ok:true, tile: tile };
+    }).catch(function(){
+      return { ok:false, name: absolutePath.split('/').pop() };
+    });
+  }
+
+  function handleDroppedFiles(fileList){
+    var project = getActiveProject();
+    var paths = [];
+    for(var i = 0; i < fileList.length; i++){
+      try{
+        var p = window.projqik.getPathForFile(fileList[i]);
+        if(p) paths.push(p);
+      }catch(err){
+        console.error('ProjQik: getPathForFile failed', err);
+      }
+    }
+    if(paths.length === 0){
+      showToast('Could not read what was dropped.', true);
+      return;
+    }
+    Promise.all(paths.map(addTileFromDroppedPath)).then(function(results){
+      var added = 0;
+      var failed = 0;
+      results.forEach(function(r){
+        if(r.ok){
+          project.tiles.push(r.tile);
+          added++;
+        } else {
+          failed++;
+        }
+      });
+      if(added > 0){
+        saveData();
+        renderRail();
+        renderMain();
+      }
+      if(added > 0 && failed === 0){
+        showToast(added === 1 ? 'Added 1 tile' : 'Added ' + added + ' tiles');
+      } else if(added > 0 && failed > 0){
+        showToast('Added ' + added + ', but ' + failed + ' couldn\u2019t be read', true);
+      } else {
+        showToast('Couldn\u2019t add what was dropped.', true);
+      }
+    });
+  }
+
+  window.addEventListener('dragenter', function(ev){
+    if(!isFileDrag(ev)) return;
+    ev.preventDefault();
+    dragEnterCounter++;
+    dropOverlayProjectName.textContent = getActiveProject().name;
+    dropOverlay.classList.add('show');
+  });
+  window.addEventListener('dragover', function(ev){
+    if(!isFileDrag(ev)) return;
+    ev.preventDefault();
+    if(ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy';
+  });
+  window.addEventListener('dragleave', function(ev){
+    if(!isFileDrag(ev)) return;
+    dragEnterCounter = Math.max(0, dragEnterCounter - 1);
+    if(dragEnterCounter === 0) dropOverlay.classList.remove('show');
+  });
+  window.addEventListener('drop', function(ev){
+    if(!isFileDrag(ev)) return;
+    ev.preventDefault();
+    dragEnterCounter = 0;
+    dropOverlay.classList.remove('show');
+    if(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length > 0){
+      handleDroppedFiles(ev.dataTransfer.files);
+    }
+  });
+
+  // ---------- global search ----------
+  var globalSearchInput = document.getElementById('globalSearchInput');
+  var searchResultsEl = document.getElementById('searchResults');
+  var searchClearBtn = document.getElementById('searchClearBtn');
+
+  // Archived projects are deliberately excluded from search — they're put away on purpose.
+  // Unarchive from Preferences first if you need to find something inside one.
+  function searchAllTiles(query){
+    var q = query.trim().toLowerCase();
+    if(!q) return [];
+    var results = [];
+    state.projects.forEach(function(project){
+      if(project.archived) return;
+      project.tiles.forEach(function(tile){
+        var label = tile.label.toLowerCase();
+        var target = tile.target.toLowerCase();
+        var labelIdx = label.indexOf(q);
+        var targetIdx = target.indexOf(q);
+        if(labelIdx === -1 && targetIdx === -1) return;
+        var score = labelIdx === 0 ? 0 : (labelIdx > -1 ? 1 : 2);
+        results.push({ tile: tile, project: project, score: score });
+      });
+    });
+    results.sort(function(a, b){
+      if(a.score !== b.score) return a.score - b.score;
+      return a.tile.label.localeCompare(b.tile.label);
+    });
+    return results.slice(0, 30);
+  }
+
+  function renderSearchResults(){
+    var query = globalSearchInput.value;
+    searchClearBtn.style.display = query ? '' : 'none';
+    if(!query.trim()){
+      searchResultsEl.style.display = 'none';
+      searchResultsEl.innerHTML = '';
+      return;
+    }
+    var results = searchAllTiles(query);
+    searchResultsEl.innerHTML = '';
+    if(results.length === 0){
+      searchResultsEl.appendChild(el('div', { class:'search-empty' }, [document.createTextNode('No matches for "' + query + '"')]));
+    } else {
+      results.forEach(function(r){
+        var theme = getTheme(r.project);
+        var row = el('button', {
+          type:'button',
+          class:'search-result',
+          onclick: function(){
+            state.activeProjectId = r.project.id;
+            currentFilter = (typeof r.project.lastFilter === 'string') ? r.project.lastFilter : 'all';
+            saveData();
+            renderRail();
+            renderMain();
+            globalSearchInput.value = '';
+            renderSearchResults();
+            globalSearchInput.blur();
+            openTile(r.tile);
+          }
+        }, [
+          el('div', { class:'search-result__icon', html: tileIconMarkup(r.tile) }),
+          el('div', { class:'search-result__text' }, [
+            el('div', { class:'search-result__label' }, [document.createTextNode(r.tile.label)]),
+            el('div', { class:'search-result__meta' }, [document.createTextNode(r.tile.target)])
+          ]),
+          el('div', { class:'search-result__project' }, [
+            el('span', { class:'search-result__dot', style:'background:' + theme.accent + ';' }),
+            document.createTextNode(r.project.name)
+          ])
+        ]);
+        searchResultsEl.appendChild(row);
+      });
+    }
+    searchResultsEl.style.display = '';
+  }
+
+  globalSearchInput.addEventListener('input', renderSearchResults);
+  globalSearchInput.addEventListener('focus', function(){
+    if(globalSearchInput.value.trim()) renderSearchResults();
+  });
+  searchClearBtn.addEventListener('click', function(){
+    globalSearchInput.value = '';
+    renderSearchResults();
+    globalSearchInput.focus();
+  });
+  document.addEventListener('click', function(ev){
+    if(!ev.target.closest('.search-box')){
+      searchResultsEl.style.display = 'none';
+    }
+  });
+  globalSearchInput.addEventListener('keydown', function(ev){
+    if(ev.key === 'Escape'){
+      globalSearchInput.value = '';
+      renderSearchResults();
+      globalSearchInput.blur();
+    }
+  });
+
+  // ---------- settings page ----------
+  var settingsOverlay = document.getElementById('settingsOverlay');
+  var settingsThemeRow = document.getElementById('settingsThemeRow');
+  var accentSaturationSlider = document.getElementById('accentSaturationSlider');
+  var accentSaturationValue = document.getElementById('accentSaturationValue');
+  var tileSizeSegmented = document.getElementById('tileSizeSegmented');
+
+  function effectiveSaturation(){
+    if(typeof state.accentSaturation === 'number') return state.accentSaturation;
+    return getAppTheme(state.appTheme).accentL;
+  }
+
+  function refreshSettingsUI(){
+    settingsThemeRow.innerHTML = '';
+    APP_THEMES.forEach(function(t){
+      var swatchBtn = el('button', {
+        type:'button',
+        class:'theme-swatch' + (state.appTheme === t.id ? ' is-active' : ''),
+        style:'background:' + t.swatch + ';',
+        title: t.label,
+        'aria-label': 'Use ' + t.label + ' color scheme',
+        onclick: function(){
+          state.appTheme = t.id;
+          saveData();
+          applyAppTheme(t.id);
+          refreshSettingsUI();
+        }
+      });
+      settingsThemeRow.appendChild(swatchBtn);
+    });
+
+    var sat = effectiveSaturation();
+    accentSaturationSlider.value = sat;
+    accentSaturationValue.textContent = Math.round(sat) + '%';
+
+    Array.prototype.forEach.call(tileSizeSegmented.querySelectorAll('button'), function(btn){
+      btn.classList.toggle('is-active', btn.dataset.size === state.tileSize);
+    });
+
+    refreshArchivedList();
+    refreshChromeProfilesList();
+  }
+
+  function detectChromeProfiles(){
+    window.projqik.getChromeProfiles().then(function(result){
+      if(!result.ok){
+        showToast(result.error || 'Could not detect Chrome profiles.', true);
+        return;
+      }
+      if(result.profiles.length === 0){
+        showToast('No Chrome profiles found.', true);
+        return;
+      }
+      var addedCount = 0;
+      result.profiles.forEach(function(detected){
+        var existing = state.chromeProfiles.find(function(p){ return p.directory === detected.directory; });
+        if(existing){
+          existing.chromeName = detected.chromeName;
+          existing.email = detected.email;
+        } else {
+          state.chromeProfiles.push({
+            id: uid(),
+            directory: detected.directory,
+            label: detected.chromeName || detected.directory,
+            email: detected.email,
+            color: THEMES[state.chromeProfiles.length % THEMES.length].accent
+          });
+          addedCount++;
+        }
+      });
+      saveData();
+      refreshChromeProfilesList();
+      showToast(addedCount > 0 ? ('Found ' + result.profiles.length + ' profile' + (result.profiles.length === 1 ? '' : 's')) : 'Profile list refreshed');
+    }).catch(function(err){
+      console.error('ProjQik: getChromeProfiles failed', err);
+      showToast('Could not detect Chrome profiles.', true);
+    });
+  }
+
+  function refreshChromeProfilesList(){
+    var container = document.getElementById('chromeProfilesList');
+    container.innerHTML = '';
+    if(state.chromeProfiles.length === 0){
+      container.appendChild(el('p', { class:'chrome-profiles-empty' }, [document.createTextNode('No profiles detected yet \u2014 click Detect Chrome Profiles above.')]));
+      return;
+    }
+    state.chromeProfiles.forEach(function(profile){
+      var nameInput = el('input', {
+        type:'text', class:'chrome-profile-item__name', value: profile.label,
+        oninput: function(ev){ profile.label = ev.target.value; },
+        onchange: function(){ saveData(); renderRail(); }
+      });
+      var infoGroup = el('div', { class:'chrome-profile-item__info' }, [
+        nameInput,
+        el('div', { class:'chrome-profile-item__email' }, [document.createTextNode(profile.email ? (profile.email + ' \u00b7 ' + profile.directory) : profile.directory)])
+      ]);
+      container.appendChild(el('div', { class:'chrome-profile-item' }, [
+        el('button', {
+          type:'button', class:'chrome-profile-item__swatch', style:'background:' + profile.color + ';',
+          title:'Click to change color', 'aria-label':'Change color for ' + profile.label,
+          onclick: function(){
+            var idx = THEMES.findIndex(function(t){ return t.accent === profile.color; });
+            var next = THEMES[(idx + 1) % THEMES.length];
+            profile.color = next.accent;
+            saveData();
+            refreshChromeProfilesList();
+          }
+        }),
+        infoGroup,
+        el('button', {
+          type:'button', class:'chrome-profile-item__test',
+          onclick: function(){
+            window.projqik.openUrlWithProfile('https://myaccount.google.com', profile.directory).then(function(result){
+              if(!result.ok) showToast(result.error || 'Could not open Chrome.', true);
+              else showToast('Opening in ' + profile.label + '\u2019s Chrome profile\u2026');
+            }).catch(function(err){
+              console.error('ProjQik: test profile launch failed', err);
+              showToast('Could not open Chrome.', true);
+            });
+          }
+        }, [document.createTextNode('Test')]),
+        el('button', {
+          type:'button', class:'chrome-profile-item__remove', title:'Remove this profile', 'aria-label':'Remove ' + profile.label,
+          onclick: function(){ removeChromeProfile(profile); }
+        }, [(function(){ var d = el('span', { html: iconTrash() }); return d.firstChild; })()])
+      ]));
+    });
+  }
+
+  function removeChromeProfile(profile){
+    var confirmed = window.confirm('Remove "' + profile.label + '" from your profile list? Any project or tile currently set to use it will fall back to no profile (normal default browser behavior). This doesn\u2019t affect the actual Chrome profile on your Mac \u2014 only ProjQik\u2019s record of it.');
+    if(!confirmed) return;
+    state.chromeProfiles = state.chromeProfiles.filter(function(p){ return p.id !== profile.id; });
+    saveData();
+    refreshChromeProfilesList();
+    renderRail();
+    renderMain();
+    showToast('Removed "' + profile.label + '"');
+  }
+
+  document.getElementById('detectProfilesBtn').addEventListener('click', detectChromeProfiles);
+
+  function refreshArchivedList(){
+    var container = document.getElementById('archivedProjectsList');
+    var archived = state.projects.filter(function(p){ return p.archived; });
+    container.innerHTML = '';
+    if(archived.length === 0){
+      container.appendChild(el('p', { class:'archived-empty' }, [document.createTextNode('No archived projects.')]));
+      return;
+    }
+    archived.forEach(function(p){
+      container.appendChild(el('div', { class:'archived-item' }, [
+        el('span', { class:'archived-item__name' }, [document.createTextNode(p.name)]),
+        el('span', { class:'archived-item__count' }, [document.createTextNode(p.tiles.length + ' tile' + (p.tiles.length === 1 ? '' : 's'))]),
+        el('button', {
+          type:'button', class:'archived-item__restore',
+          onclick: function(){ restoreProject(p); }
+        }, [document.createTextNode('Restore')])
+      ]));
+    });
+  }
+
+  document.getElementById('settingsGearBtn').addEventListener('click', function(){
+    refreshSettingsUI();
+    settingsOverlay.classList.add('show');
+  });
+  document.getElementById('settingsCloseBtn').addEventListener('click', function(){
+    settingsOverlay.classList.remove('show');
+  });
+  settingsOverlay.addEventListener('click', function(ev){
+    if(ev.target === settingsOverlay) settingsOverlay.classList.remove('show');
+  });
+
+  accentSaturationSlider.addEventListener('input', function(){
+    var value = parseInt(accentSaturationSlider.value, 10);
+    state.accentSaturation = value;
+    accentSaturationValue.textContent = value + '%';
+    saveData();
+    applyAccentSaturation();
+  });
+
+  Array.prototype.forEach.call(tileSizeSegmented.querySelectorAll('button'), function(btn){
+    btn.addEventListener('click', function(){
+      state.tileSize = btn.dataset.size;
+      saveData();
+      applyTileSize(state.tileSize);
+      refreshSettingsUI();
+    });
+  });
+
+  document.getElementById('settingsExportBtn').addEventListener('click', exportData);
+  document.getElementById('settingsImportBtn').addEventListener('click', importData);
+
+  // ---------- boot ----------
+  function boot(){
+    applyAppTheme(state.appTheme);
+    applyTileSize(state.tileSize);
+    var activeProject = getActiveProject();
+    currentFilter = (activeProject && typeof activeProject.lastFilter === 'string') ? activeProject.lastFilter : 'all';
+    renderStorageBanner();
+    applyMainTheme(activeProject);
+    renderRail();
+    buildRailFooter();
+    renderMain();
+    document.getElementById('skeleton').style.display = 'none';
+    document.getElementById('app').classList.add('ready');
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>
