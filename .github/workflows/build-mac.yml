@@ -1,0 +1,57 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build macOS app
+        run: npm run dist
+        env:
+          # These read from GitHub repo secrets (Settings → Secrets and variables → Actions).
+          # Until those secrets are added, every one of these resolves to an empty value and
+          # electron-builder falls back to an ad-hoc-signed build — nothing breaks in the
+          # meantime. Once real values are added, this automatically signs with a real Developer
+          # ID certificate and notarizes with Apple, with no further changes needed here.
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Report signing status
+        run: |
+          echo "----- x64 build -----"
+          codesign -dv --verbose=4 dist/mac/ProjQik.app 2>&1 || true
+          echo ""
+          echo "----- arm64 build -----"
+          codesign -dv --verbose=4 dist/mac-arm64/ProjQik.app 2>&1 || true
+          echo ""
+          echo "----- Gatekeeper assessment (only meaningful once notarized) -----"
+          spctl -a -vvv --type execute dist/mac/ProjQik.app 2>&1 || true
+          spctl -a -vvv --type execute dist/mac-arm64/ProjQik.app 2>&1 || true
+
+      - name: Verify build integrity (structure, not signature — this passes either way)
+        run: |
+          codesign --verify --deep --strict --verbose=2 dist/mac/ProjQik.app
+          codesign --verify --deep --strict --verbose=2 dist/mac-arm64/ProjQik.app
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: projqik-mac-builds
+          path: dist/*.zip
+          retention-days: 14
