@@ -1,7 +1,7 @@
 {
   "name": "projqik",
   "version": "3.0.0",
-  "description": "Instant access to the files, folders, apps, and links for each of your projects — by Freedom Forge AI.",
+  "description": "Instant access to the files, folders, apps, and links for each of your projects \u2014 by Freedom Forge AI.",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -34,11 +34,46 @@
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [
-        { "target": "dmg", "arch": ["x64"] },
-        { "target": "dmg", "arch": ["arm64"] },
-        { "target": "zip", "arch": ["x64"] },
-        { "target": "zip", "arch": ["arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
       ]
+    },
+    "artifactName": "${productName}-${arch}.${ext}",
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
     }
   }
 }
