@@ -58,5 +58,19 @@ contextBridge.exposeInMainWorld('projqik', {
   // Imports a backup via a native Open dialog — accepts either the new .zip format or an older
   // plain .json backup for backward compatibility. Resolves to
   // { ok: true, cancelled: boolean, stateJson? } or { ok: false, error }.
-  importBackup: () => ipcRenderer.invoke('import-backup')
+  importBackup: () => ipcRenderer.invoke('import-backup'),
+
+  // Reveals the icon or background library folder ('icons' | 'backgrounds') in Finder.
+  // Resolves to { ok: true } or { ok: false, error }.
+  openAssetFolder: (kind) => ipcRenderer.invoke('open-asset-folder', kind),
+
+  // Lets the user pick a folder of images and copies them (subfolders included) into the icon or
+  // background library. Resolves to { ok: true, cancelled, folder, imported, skipped, existing,
+  // downscaled, truncated } or { ok: false, error }.
+  importAssetFolder: (kind) => ipcRenderer.invoke('import-asset-folder', kind),
+
+  // Looks up a link's website icon and (optionally) its page title, straight from that site.
+  // Resolves to { ok: true, faviconUrl?, title? }. Never throws for ordinary failures — a site that
+  // has no icon, is offline, or is slow just resolves without those fields.
+  fetchSiteMeta: (url, options) => ipcRenderer.invoke('fetch-site-meta', url, options)
 });

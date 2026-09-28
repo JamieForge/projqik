@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, nativeImage } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const fs = require('fs/promises');
 const { spawn } = require('child_process');
 const crypto = require('crypto');
@@ -24,8 +25,10 @@ protocol.registerSchemesAsPrivileged([
 
 const ASSET_DIRS = {
   icons: path.join(app.getPath('userData'), 'icons'),
-  backgrounds: path.join(app.getPath('userData'), 'backgrounds')
+  backgrounds: path.join(app.getPath('userData'), 'backgrounds'),
+  favicons: path.join(app.getPath('userData'), 'favicons') // cache of website icons for link tiles
 };
+const APP_INDEX_URL = pathToFileURL(path.join(__dirname, 'renderer', 'index.html')).href;
 const BUNDLED_ASSET_DIRS = {
   icons: path.join(__dirname, 'renderer', 'bundled-icons'),
   backgrounds: path.join(__dirname, 'renderer', 'bundled-backgrounds')
@@ -54,6 +57,7 @@ const MAX_PREVIEW_BYTES = 30 * 1024 * 1024; // skip embedding thumbnails larger 
 async function ensureAssetDirs(){
   await fs.mkdir(ASSET_DIRS.icons, { recursive: true });
   await fs.mkdir(ASSET_DIRS.backgrounds, { recursive: true });
+  await fs.mkdir(ASSET_DIRS.favicons, { recursive: true });
 }
 
 // Copies the app's built-in starter icons/backgrounds into the user's own asset library exactly
@@ -80,10 +84,30 @@ async function seedBundledAssets(){
   await fs.writeFile(SEEDED_MARKER_PATH, new Date().toISOString());
 }
 
-function isSafeAssetFilename(name){
-  // Generated filenames are always simple (see generateAssetFilename); reject anything else,
-  // most importantly path separators or ".." which could otherwise escape the asset folder.
-  return typeof name === 'string' && /^[A-Za-z0-9_-]+\.[A-Za-z0-9]+$/.test(name);
+// Resolves a library-relative path (an array of already-decoded segments) to an absolute path that
+// is guaranteed to sit inside the given library folder, or returns null if it can't be trusted.
+// Every segment is rejected if it's empty, a dot segment, hidden, or contains a path separator or
+// NUL, and the fully resolved path must still be strictly inside the library folder. This is what
+// keeps a crafted URL or a backup-zip entry name (e.g. "..%2F..%2Fmain.js") from ever reaching
+// outside it — while allowing ordinary names with spaces, parentheses, accents, and subfolders.
+function safeAssetPath(kind, segments){
+  const base = ASSET_DIRS[kind];
+  if(!base || !Array.isArray(segments) || segments.length === 0 || segments.length > 6) return null;
+  for(const seg of segments){
+    if(typeof seg !== 'string' || !seg || seg === '.' || seg === '..' || seg.charAt(0) === '.' || /[\/\\\0]/.test(seg)) return null;
+  }
+  const resolved = path.resolve(base, ...segments);
+  if(!resolved.startsWith(base + path.sep)) return null;
+  return resolved;
+}
+
+// Builds the pqasset:// URL the renderer uses as an <img> source. Each segment is percent-encoded,
+// so names with spaces or special characters round-trip safely.
+function assetUrl(kind, segments){
+  // encodeURIComponent leaves ! ' ( ) * alone; encode those too so a name like "Logo (final).png"
+  // is safe inside an HTML attribute, a CSS url(...), or a single-quoted string alike.
+  const encode = function(s){ return encodeURIComponent(s).replace(/[!'()*]/g, function(c){ return '%' + c.charCodeAt(0).toString(16).toUpperCase(); }); };
+  return 'pqasset://' + kind + '/' + segments.map(encode).join('/');
 }
 
 function generateAssetFilename(ext){
@@ -96,25 +120,32 @@ function extensionFromDataUrl(dataUrl){
   let sub = match[1].toLowerCase();
   if(sub === 'jpeg') sub = 'jpg';
   if(sub === 'svg+xml') sub = 'svg';
-  return '.' + sub;
+  if(sub === 'x-icon' || sub === 'vnd.microsoft.icon') sub = 'ico';
+  const ext = '.' + sub;
+  return IMAGE_MIME_TYPES[ext] ? ext : null;
 }
 
 function registerAssetProtocol(){
+  const notFound = () => new Response('Not found', { status: 404 });
   protocol.handle('pqasset', async (request) => {
     try{
       const url = new URL(request.url);
-      const kind = url.hostname; // 'icons' or 'backgrounds'
-      const filename = decodeURIComponent(url.pathname.replace(/^\//, ''));
-      if(!ASSET_DIRS[kind] || !isSafeAssetFilename(filename)){
-        return new Response('Not found', { status: 404 });
-      }
-      const filePath = path.join(ASSET_DIRS[kind], filename);
-      const ext = path.extname(filename).toLowerCase();
-      const mime = IMAGE_MIME_TYPES[ext] || 'application/octet-stream';
+      const kind = url.hostname; // 'icons', 'backgrounds' or 'favicons'
+      if(!ASSET_DIRS[kind]) return notFound();
+      const segments = url.pathname.split('/').slice(1).map(decodeURIComponent);
+      const filePath = safeAssetPath(kind, segments);
+      if(!filePath) return notFound();
+      const ext = path.extname(filePath).toLowerCase();
+      const mime = IMAGE_MIME_TYPES[ext];
+      if(!mime) return notFound();
       const data = await fs.readFile(filePath);
-      return new Response(data, { headers: { 'content-type': mime, 'content-length': String(data.length) } });
+      const headers = { 'content-type': mime, 'content-length': String(data.length) };
+      // Defense in depth: even though these are only ever shown through <img> (where scripts never
+      // run), an SVG served from here gets a policy that forbids anything active.
+      if(ext === '.svg') headers['content-security-policy'] = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+      return new Response(data, { headers });
     }catch(err){
-      return new Response('Not found', { status: 404 });
+      return notFound();
     }
   });
 }
@@ -136,6 +167,19 @@ function createWindow(){
   });
 
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  // The app is a single page that never navigates anywhere else. Without this, dropping a link (or
+  // a file) onto the window could replace the whole app with that page. Anything other than the
+  // app's own page is blocked, and nothing is allowed to open extra windows.
+  win.webContents.on('will-navigate', (event, url) => {
+    try{
+      const target = new URL(url);
+      const own = new URL(APP_INDEX_URL);
+      if(target.protocol === own.protocol && target.pathname === own.pathname) return;
+    }catch(err){ /* fall through and block */ }
+    event.preventDefault();
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   if(!app.isPackaged){
     // Surface renderer console output in the terminal during `npm start` for easier debugging.
@@ -259,17 +303,17 @@ ipcMain.handle('open-url-with-profile', async (event, url, profileDirectory) => 
   }
 });
 
-// ---------- IPC: expose the app's version (single source of truth: package.json via Electron) ----------
 // ---------- IPC: icon & background asset library ----------
 async function saveAsset(kind, dataUrl){
   const match = /^data:image\/[a-zA-Z0-9+.-]+;base64,(.+)$/.exec(dataUrl || '');
-  if(!match) return { ok:false, error:'That doesn\u2019t look like a valid image.' };
-  const ext = extensionFromDataUrl(dataUrl) || '.png';
+  const ext = extensionFromDataUrl(dataUrl);
+  if(!match || !ext) return { ok:false, error:'That doesn\u2019t look like a supported image.' };
   const filename = generateAssetFilename(ext);
-  const filePath = path.join(ASSET_DIRS[kind], filename);
+  const filePath = safeAssetPath(kind, [filename]);
+  if(!filePath) return { ok:false, error:'Could not save that image.' };
   try{
     await fs.writeFile(filePath, Buffer.from(match[1], 'base64'));
-    return { ok:true, filename: filename, url: 'pqasset://' + kind + '/' + filename };
+    return { ok:true, filename: filename, url: assetUrl(kind, [filename]) };
   }catch(err){
     return { ok:false, error:'Could not save that image.' };
   }
@@ -278,23 +322,349 @@ async function saveAsset(kind, dataUrl){
 ipcMain.handle('save-icon-asset', (event, dataUrl) => saveAsset('icons', dataUrl));
 ipcMain.handle('save-background-asset', (event, dataUrl) => saveAsset('backgrounds', dataUrl));
 
+const LIST_MAX_FILES = 5000;
+const LIST_MAX_DEPTH = 4;
+
+// Walks a library folder (including subfolders) and collects every image and every folder path.
+// Hidden entries (like .DS_Store) and symlinks are skipped on purpose.
+async function walkAssets(kind, dirSegments, depth, out){
+  if(depth > LIST_MAX_DEPTH || out.files.length >= LIST_MAX_FILES) return;
+  const dirPath = dirSegments.length ? path.join(ASSET_DIRS[kind], ...dirSegments) : ASSET_DIRS[kind];
+  let entries;
+  try{ entries = await fs.readdir(dirPath, { withFileTypes: true }); }catch(err){ return; }
+  entries.sort(function(a, b){ return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }); });
+  for(const entry of entries){
+    if(entry.name.charAt(0) === '.') continue;
+    if(entry.isDirectory()){
+      out.folders.push(dirSegments.concat(entry.name).join('/'));
+      await walkAssets(kind, dirSegments.concat(entry.name), depth + 1, out);
+    }else if(entry.isFile()){
+      const ext = path.extname(entry.name).toLowerCase();
+      if(!IMAGE_MIME_TYPES[ext]) continue;
+      out.files.push({ filename: entry.name, folder: dirSegments.join('/'), url: assetUrl(kind, dirSegments.concat(entry.name)) });
+      if(out.files.length >= LIST_MAX_FILES) return;
+    }
+  }
+}
+
 async function listAssets(kind){
+  const out = { files: [], folders: [] };
   try{
-    const entries = await fs.readdir(ASSET_DIRS[kind]);
-    const images = entries.filter(function(name){
-      const ext = path.extname(name).toLowerCase();
-      return !!IMAGE_MIME_TYPES[ext];
-    });
-    return { ok:true, files: images.map(function(name){ return { filename: name, url: 'pqasset://' + kind + '/' + name }; }) };
+    await walkAssets(kind, [], 0, out);
+    return { ok:true, files: out.files, folders: out.folders };
   }catch(err){
-    return { ok:false, files: [], error:'Could not read the asset library.' };
+    return { ok:false, files: [], folders: [], error:'Could not read the asset library.' };
   }
 }
 
 ipcMain.handle('list-icon-assets', () => listAssets('icons'));
 ipcMain.handle('list-background-assets', () => listAssets('backgrounds'));
 
+// Reveals the library folder in Finder so images can simply be dropped in (subfolders included).
+ipcMain.handle('open-asset-folder', async (event, kind) => {
+  if(kind !== 'icons' && kind !== 'backgrounds') return { ok:false, error:'Unknown library.' };
+  try{
+    await fs.mkdir(ASSET_DIRS[kind], { recursive: true });
+    const errorMessage = await shell.openPath(ASSET_DIRS[kind]);
+    return errorMessage ? { ok:false, error: errorMessage } : { ok:true };
+  }catch(err){
+    return { ok:false, error:'Could not open the library folder.' };
+  }
+});
+
+// Copies every image from a chosen folder (and its subfolders) into the library, keeping the
+// folder structure. Oversized PNG/JPEG icons are scaled down to a sensible size so a big
+// collection doesn't make the library slow to open.
+const IMPORT_MAX_FILES = 3000;
+const IMPORT_MAX_BYTES = 30 * 1024 * 1024;
+const IMPORT_MAX_DEPTH = 4;
+const ICON_MAX_DIMENSION = 512;
+
+async function importFolderTree(kind, srcDir, destSegments, depth, stats){
+  if(depth > IMPORT_MAX_DEPTH) return;
+  let entries;
+  try{ entries = await fs.readdir(srcDir, { withFileTypes: true }); }catch(err){ return; }
+  for(const entry of entries){
+    if(entry.name.charAt(0) === '.') continue;
+    const srcPath = path.join(srcDir, entry.name);
+    if(entry.isDirectory()){
+      await importFolderTree(kind, srcPath, destSegments.concat(entry.name), depth + 1, stats);
+    }else if(entry.isFile()){
+      const ext = path.extname(entry.name).toLowerCase();
+      if(!IMAGE_MIME_TYPES[ext]){ stats.skipped++; continue; }
+      if(stats.imported >= IMPORT_MAX_FILES){ stats.truncated = true; return; }
+      const destPath = safeAssetPath(kind, destSegments.concat(entry.name));
+      if(!destPath){ stats.skipped++; continue; }
+      try{
+        const st = await fs.stat(srcPath);
+        if(st.size > IMPORT_MAX_BYTES){ stats.skipped++; continue; }
+        let alreadyThere = true;
+        try{ await fs.access(destPath); }catch(err){ alreadyThere = false; }
+        if(alreadyThere){ stats.existing++; continue; }
+        await fs.mkdir(path.dirname(destPath), { recursive: true });
+        let wrote = false;
+        if(kind === 'icons' && (ext === '.png' || ext === '.jpg' || ext === '.jpeg')){
+          try{
+            const img = nativeImage.createFromPath(srcPath);
+            const size = img.getSize();
+            if(!img.isEmpty() && (size.width > ICON_MAX_DIMENSION || size.height > ICON_MAX_DIMENSION)){
+              const scale = ICON_MAX_DIMENSION / Math.max(size.width, size.height);
+              const resized = img.resize({
+                width: Math.max(1, Math.round(size.width * scale)),
+                height: Math.max(1, Math.round(size.height * scale)),
+                quality: 'best'
+              });
+              await fs.writeFile(destPath, ext === '.png' ? resized.toPNG() : resized.toJPEG(90));
+              wrote = true;
+              stats.downscaled++;
+            }
+          }catch(err){ /* couldn't resize — fall back to a plain copy below */ }
+        }
+        if(!wrote) await fs.copyFile(srcPath, destPath);
+        stats.imported++;
+      }catch(err){
+        stats.skipped++;
+      }
+    }
+  }
+}
+
+ipcMain.handle('import-asset-folder', async (event, kind) => {
+  if(kind !== 'icons' && kind !== 'backgrounds') return { ok:false, error:'Unknown library.' };
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, { title: 'Choose a folder of images to add', properties: ['openDirectory'] });
+  if(result.canceled || !result.filePaths || result.filePaths.length === 0) return { ok:true, cancelled:true };
+  const srcDir = result.filePaths[0];
+  const relToLibrary = path.relative(ASSET_DIRS[kind], srcDir);
+  if(relToLibrary === '' || (!relToLibrary.startsWith('..') && !path.isAbsolute(relToLibrary))){
+    return { ok:false, error:'That folder is already part of your library.' };
+  }
+  const topFolder = path.basename(srcDir);
+  const stats = { imported: 0, skipped: 0, existing: 0, downscaled: 0, truncated: false };
+  // Images directly inside the chosen folder land in a category named after it; any subfolders
+  // keep their structure beneath that category.
+  await importFolderTree(kind, srcDir, [topFolder], 0, stats);
+  return Object.assign({ ok:true, cancelled:false, folder: topFolder }, stats);
+});
+
+// ---------- IPC: website icon (favicon) and page title for link tiles ----------
+// Runs entirely from this app straight to the site the user is already linking to — no
+// third-party icon service ever sees which sites are in someone's tiles, and no cookies or
+// credentials are sent. Every failure is silent: the tile just keeps its default link icon.
+const SITE_META_TIMEOUT_MS = 6000;
+const MAX_HTML_BYTES = 256 * 1024;
+const MAX_ICON_BYTES = 400 * 1024;
+const FAVICON_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const siteMetaInFlight = new Map();
+
+async function readLimited(res, maxBytes){
+  const reader = res.body && typeof res.body.getReader === 'function' ? res.body.getReader() : null;
+  if(!reader){
+    const all = Buffer.from(await res.arrayBuffer());
+    return all.length > maxBytes ? { buffer: all.subarray(0, maxBytes), truncated: true } : { buffer: all, truncated: false };
+  }
+  const chunks = [];
+  let total = 0;
+  let truncated = false;
+  while(true){
+    const step = await reader.read();
+    if(step.done) break;
+    chunks.push(Buffer.from(step.value));
+    total += step.value.length;
+    if(total > maxBytes){
+      truncated = true;
+      try{ await reader.cancel(); }catch(err){ /* already closing */ }
+      break;
+    }
+  }
+  const joined = Buffer.concat(chunks);
+  return { buffer: truncated ? joined.subarray(0, maxBytes) : joined, truncated };
+}
+
+async function httpGetLimited(url, maxBytes){
+  const controller = new AbortController();
+  const timer = setTimeout(function(){ controller.abort(); }, SITE_META_TIMEOUT_MS);
+  try{
+    const res = await net.fetch(url, { signal: controller.signal, redirect: 'follow', credentials: 'omit' });
+    if(!res.ok) return null;
+    const body = await readLimited(res, maxBytes);
+    return { buffer: body.buffer, truncated: body.truncated, finalUrl: res.url || url, contentType: res.headers.get('content-type') || '' };
+  }catch(err){
+    return null;
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+function decodeHtmlEntities(text){
+  return text.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, function(whole, entity){
+    const e = entity.toLowerCase();
+    if(e === 'amp') return '&';
+    if(e === 'lt') return '<';
+    if(e === 'gt') return '>';
+    if(e === 'quot') return '"';
+    if(e === 'apos') return "'";
+    if(e === 'nbsp') return ' ';
+    try{
+      const code = e.charAt(1) === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return String.fromCodePoint(code);
+    }catch(err){
+      return whole;
+    }
+  });
+}
+
+function tagAttribute(tag, name){
+  const re = new RegExp('\\s' + name + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))', 'i');
+  const m = re.exec(tag);
+  if(!m) return null;
+  return m[1] !== undefined ? m[1] : (m[2] !== undefined ? m[2] : m[3]);
+}
+
+// Pulls the page title and a ranked list of candidate icon URLs out of a page's HTML.
+function parseSiteHtml(html, baseUrl){
+  const result = { title: '', icons: [] };
+  const titleMatch = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+  if(titleMatch){
+    let title = decodeHtmlEntities(titleMatch[1]).replace(/\s+/g, ' ').trim();
+    if(title.length > 120) title = title.slice(0, 120).trim() + '\u2026';
+    result.title = title;
+  }
+  const scored = [];
+  const linkRe = /<link\b[^>]*>/gi;
+  let m;
+  while((m = linkRe.exec(html))){
+    const tag = m[0];
+    const rel = (tagAttribute(tag, 'rel') || '').toLowerCase();
+    const href = tagAttribute(tag, 'href');
+    if(!rel || !href) continue;
+    if(rel.indexOf('mask-icon') !== -1) continue;
+    if(rel.indexOf('icon') === -1) continue; // matches "icon", "shortcut icon", "apple-touch-icon"
+    let absolute;
+    try{ absolute = new URL(decodeHtmlEntities(href), baseUrl).href; }catch(err){ continue; }
+    if(!/^https?:/i.test(absolute)) continue;
+    const sizes = tagAttribute(tag, 'sizes') || '';
+    const type = (tagAttribute(tag, 'type') || '').toLowerCase();
+    let score = 32;
+    const dims = /(\d+)\s*x\s*(\d+)/i.exec(sizes);
+    if(dims) score = Math.max(parseInt(dims[1], 10), parseInt(dims[2], 10));
+    if(type.indexOf('svg') !== -1 || /\.svg(\?|#|$)/i.test(absolute)) score = Math.max(score, 300);
+    if(rel.indexOf('apple-touch-icon') !== -1) score += 10;
+    scored.push({ url: absolute, score: score });
+  }
+  scored.sort(function(a, b){ return b.score - a.score; });
+  result.icons = scored.map(function(s){ return s.url; });
+  return result;
+}
+
+function sniffImageType(buf){
+  if(!buf || buf.length < 4) return null;
+  if(buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return 'png';
+  if(buf[0] === 0xFF && buf[1] === 0xD8) return 'jpg';
+  if(buf.subarray(0, 3).toString('ascii') === 'GIF') return 'gif';
+  if(buf[0] === 0 && buf[1] === 0 && buf[2] === 1 && buf[3] === 0) return 'ico';
+  if(buf.length > 12 && buf.subarray(0, 4).toString('ascii') === 'RIFF' && buf.subarray(8, 12).toString('ascii') === 'WEBP') return 'webp';
+  const head = buf.subarray(0, 512).toString('utf8').replace(/^\uFEFF/, '').trimStart().toLowerCase();
+  if(head.startsWith('<svg') || (head.startsWith('<?xml') && head.indexOf('<svg') !== -1)) return 'svg';
+  return null;
+}
+
+function faviconBaseName(origin){
+  return crypto.createHash('sha1').update(origin).digest('hex').slice(0, 16);
+}
+
+async function findCachedFavicon(origin){
+  const prefix = faviconBaseName(origin) + '.';
+  let names = [];
+  try{ names = await fs.readdir(ASSET_DIRS.favicons); }catch(err){ return null; }
+  const name = names.find(function(n){ return n.indexOf(prefix) === 0; });
+  if(!name) return null;
+  try{
+    const st = await fs.stat(path.join(ASSET_DIRS.favicons, name));
+    return { name: name, fresh: (Date.now() - st.mtimeMs) < FAVICON_TTL_MS };
+  }catch(err){
+    return null;
+  }
+}
+
+async function saveFavicon(origin, buffer, type){
+  const base = faviconBaseName(origin);
+  try{
+    const names = await fs.readdir(ASSET_DIRS.favicons);
+    for(const n of names){
+      if(n.indexOf(base + '.') === 0) await fs.unlink(path.join(ASSET_DIRS.favicons, n)).catch(function(){});
+    }
+  }catch(err){ /* nothing to clean up */ }
+  const filename = base + '.' + type;
+  await fs.writeFile(path.join(ASSET_DIRS.favicons, filename), buffer);
+  return assetUrl('favicons', [filename]);
+}
+
+async function fetchSiteMeta(pageUrl, origin, wantTitle){
+  const result = { ok: true };
+  const cached = await findCachedFavicon(origin);
+  const needIcon = !(cached && cached.fresh);
+  if(cached) result.faviconUrl = assetUrl('favicons', [cached.name]);
+  if(!needIcon && !wantTitle) return result;
+
+  let candidates = [];
+  const page = await httpGetLimited(pageUrl, MAX_HTML_BYTES);
+  if(page && /html|xml|text/i.test(page.contentType || 'text/html')){
+    const parsed = parseSiteHtml(page.buffer.toString('utf8'), page.finalUrl || pageUrl);
+    if(wantTitle && parsed.title) result.title = parsed.title;
+    candidates = parsed.icons;
+  }
+  if(needIcon){
+    candidates = candidates.concat([origin + '/favicon.ico']);
+    const seen = new Set();
+    let tried = 0;
+    for(const candidate of candidates){
+      if(seen.has(candidate)) continue;
+      seen.add(candidate);
+      if(tried++ >= 4) break;
+      const icon = await httpGetLimited(candidate, MAX_ICON_BYTES);
+      if(!icon || icon.truncated || icon.buffer.length < 64) continue;
+      const type = sniffImageType(icon.buffer);
+      if(!type) continue;
+      result.faviconUrl = await saveFavicon(origin, icon.buffer, type);
+      break;
+    }
+  }
+  return result;
+}
+
+ipcMain.handle('fetch-site-meta', (event, url, options) => {
+  if(typeof url !== 'string' || !/^https?:\/\//i.test(url)) return { ok:false };
+  let origin;
+  try{ origin = new URL(url).origin; }catch(err){ return { ok:false }; }
+  const wantTitle = !!(options && options.wantTitle);
+  const key = origin + (wantTitle ? '|title' : '');
+  if(!siteMetaInFlight.has(key)){
+    const job = fetchSiteMeta(url, origin, wantTitle).catch(function(){ return { ok:false }; }).finally(function(){ siteMetaInFlight.delete(key); });
+    siteMetaInFlight.set(key, job);
+  }
+  return siteMetaInFlight.get(key);
+});
+
 // ---------- IPC: full backup export/import (state + icon/background library, bundled as a zip) ----------
+async function addAssetTreeToZip(zip, kind, dirSegments, depth){
+  if(depth > LIST_MAX_DEPTH + 1) return;
+  const dirPath = dirSegments.length ? path.join(ASSET_DIRS[kind], ...dirSegments) : ASSET_DIRS[kind];
+  let entries;
+  try{ entries = await fs.readdir(dirPath, { withFileTypes: true }); }catch(err){ return; }
+  for(const entry of entries){
+    if(entry.name.charAt(0) === '.') continue;
+    if(entry.isDirectory()){
+      await addAssetTreeToZip(zip, kind, dirSegments.concat(entry.name), depth + 1);
+    }else if(entry.isFile()){
+      try{
+        const data = await fs.readFile(path.join(dirPath, entry.name));
+        zip.addFile([kind].concat(dirSegments, entry.name).join('/'), data);
+      }catch(err){ /* skip this one file, keep going */ }
+    }
+  }
+}
+
 ipcMain.handle('export-backup', async (event, stateJson) => {
   const result = await dialog.showSaveDialog({
     title: 'Export ProjQik Backup',
@@ -305,15 +675,8 @@ ipcMain.handle('export-backup', async (event, stateJson) => {
   try{
     const zip = new AdmZip();
     zip.addFile('state.json', Buffer.from(stateJson, 'utf8'));
-    for(const kind of ['icons', 'backgrounds']){
-      let entries = [];
-      try{ entries = await fs.readdir(ASSET_DIRS[kind]); }catch(err){ entries = []; }
-      for(const name of entries){
-        try{
-          const data = await fs.readFile(path.join(ASSET_DIRS[kind], name));
-          zip.addFile(kind + '/' + name, data);
-        }catch(err){ /* skip this one file, keep going */ }
-      }
+    for(const kind of ['icons', 'backgrounds', 'favicons']){
+      await addAssetTreeToZip(zip, kind, [], 0);
     }
     zip.writeZip(result.filePath);
     return { ok:true, cancelled:false };
@@ -344,17 +707,17 @@ ipcMain.handle('import-backup', async () => {
     for(const entry of entries){
       if(entry.isDirectory) continue;
       const parts = entry.entryName.split('/');
-      if(parts.length !== 2) continue;
       const kind = parts[0];
-      const filename = parts[1];
-      if(!ASSET_DIRS[kind] || !isSafeAssetFilename(filename)) continue;
-      const destPath = path.join(ASSET_DIRS[kind], filename);
-      try{
-        await fs.access(destPath);
-        continue; // a file with this generated name already exists — assume it's the same asset
-      }catch(err){
-        await fs.writeFile(destPath, entry.getData());
-      }
+      if(!ASSET_DIRS[kind]) continue;
+      // Every entry name is untrusted input (a zip can contain "../" tricks), so it has to pass
+      // the same containment check as everything else, and only real image types are restored.
+      const destPath = safeAssetPath(kind, parts.slice(1));
+      if(!destPath || !IMAGE_MIME_TYPES[path.extname(destPath).toLowerCase()]) continue;
+      let alreadyThere = true;
+      try{ await fs.access(destPath); }catch(err){ alreadyThere = false; }
+      if(alreadyThere) continue; // a file with this name already exists — assume it's the same asset
+      await fs.mkdir(path.dirname(destPath), { recursive: true });
+      await fs.writeFile(destPath, entry.getData());
     }
     return { ok:true, cancelled:false, stateJson: stateJson };
   }catch(err){

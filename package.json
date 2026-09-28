@@ -1,6 +1,6 @@
 {
   "name": "projqik",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Instant access to the files, folders, apps, and links for each of your projects \u2014 by Freedom Forge AI.",
   "main": "main.js",
   "private": true,

@@ -447,35 +447,73 @@
     border:2px solid var(--panel); box-sizing:content-box;
   }
   .tile__label{
-    font-family:var(--font-body); font-weight:600; font-size:14px; padding-right:56px;
+    font-family:var(--font-body); font-weight:600; font-size:14px; padding-right:84px;
     overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
   }
   .tile__path{
     font-family:var(--font-mono); font-size:11px; color:var(--text-muted); overflow:hidden;
     text-overflow:ellipsis; white-space:nowrap;
   }
-  .tile__actions{ position:absolute; top:10px; right:10px; display:flex; gap:4px; opacity:0; transition:opacity .12s ease; }
-  .tile:hover .tile__actions, .tile:focus-within .tile__actions{ opacity:1; }
+  .tile__actions{ position:absolute; top:10px; right:10px; display:flex; gap:4px; }
   .tile__action-btn{
     all:unset; cursor:pointer; width:24px; height:24px; border-radius:6px; border:1px solid var(--border);
     background:var(--panel-raised); display:flex; align-items:center; justify-content:center; color:var(--text-muted);
+    opacity:0; transition:opacity .12s ease;
   }
+  .tile:hover .tile__action-btn, .tile:focus-within .tile__action-btn{ opacity:1; }
+  .tile__action-btn.has-note{ opacity:1; color:rgb(var(--theme-rgb)); border-color:rgba(var(--theme-rgb), .55); }
   .tile__action-btn:hover{ color:var(--text); border-color:var(--accent); }
   .tile__action-btn svg{ width:13px; height:13px; }
+
+  /* website icons pulled for link tiles sit on a light chip so they stay readable on any color scheme */
+  img.is-favicon{ background:rgba(255,255,255,.94); padding:2px; box-sizing:border-box; }
+  .tile__icon-wrap img.is-favicon, .search-result__icon img.is-favicon{ object-fit:contain; }
+
+  /* Chrome profile chooser (replaces a dropdown so long names can wrap instead of overflowing) */
+  .profile-choice-list{ display:flex; flex-direction:column; gap:6px; max-height:176px; overflow-y:auto; }
+  .profile-choice{
+    all:unset; box-sizing:border-box; cursor:pointer; display:flex; align-items:flex-start; gap:10px; width:100%;
+    padding:8px 10px; border-radius:9px; border:1px solid var(--border); background:var(--panel-raised);
+  }
+  .profile-choice:hover{ border-color:var(--text-muted); }
+  .profile-choice:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .profile-choice.is-selected{ border-color:var(--accent); background:rgba(var(--theme-rgb), .12); }
+  .profile-choice__dot{ width:10px; height:10px; border-radius:50%; margin-top:5px; flex-shrink:0; background:var(--border); }
+  .profile-choice__text{ display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
+  .profile-choice__main{ font-size:13.5px; color:var(--text); overflow-wrap:anywhere; }
+  .profile-choice__sub{ font-size:11.5px; color:var(--text-muted); overflow-wrap:anywhere; }
+
+  /* tile notes */
+  .note-textarea{
+    width:100%; box-sizing:border-box; background:var(--panel-raised); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:10px 12px; font-family:var(--font-body); font-size:14px; line-height:1.5;
+    resize:vertical; min-height:120px;
+  }
+  .note-textarea:focus{ border-color:var(--accent); outline:none; }
+
+  /* icon / background library browser */
+  .asset-library-panel{ margin-top:10px; }
+  .asset-library-toolbar{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .field-select--compact{ padding:6px 10px; font-size:12.5px; flex:1 1 140px; min-width:0; max-width:100%; }
+  .asset-library-panel .asset-library-grid{ margin-top:8px; }
+
+  /* preferences toggle */
+  .settings-toggle{ display:flex; align-items:flex-start; gap:10px; font-size:13px; color:var(--text); cursor:pointer; line-height:1.4; }
+  .settings-toggle input{ margin-top:2px; accent-color:rgb(var(--theme-rgb)); }
 
   /* ---------- tile size preference ---------- */
   body[data-tile-size="small"] .tile-grid{ grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:10px; }
   body[data-tile-size="small"] .tile{ padding:11px; gap:7px; }
   body[data-tile-size="small"] .tile__icon-wrap{ width:20px; height:20px; border-radius:5px; }
   body[data-tile-size="small"] .tile__icon-wrap img{ border-radius:5px; }
-  body[data-tile-size="small"] .tile__label{ font-size:12.5px; padding-right:44px; }
+  body[data-tile-size="small"] .tile__label{ font-size:12.5px; padding-right:56px; }
   body[data-tile-size="small"] .tile__path{ font-size:10px; }
 
   body[data-tile-size="large"] .tile-grid{ grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:18px; }
   body[data-tile-size="large"] .tile{ padding:22px; gap:14px; }
   body[data-tile-size="large"] .tile__icon-wrap{ width:48px; height:48px; border-radius:10px; }
   body[data-tile-size="large"] .tile__icon-wrap img{ border-radius:10px; }
-  body[data-tile-size="large"] .tile__label{ font-size:16px; padding-right:60px; }
+  body[data-tile-size="large"] .tile__label{ font-size:16px; padding-right:88px; }
   body[data-tile-size="large"] .tile__path{ font-size:12.5px; }
 
   .add-tile{
@@ -507,6 +545,9 @@
   .modal{
     width:100%; max-width:420px; flex:1 1 380px; background:var(--panel); border:1px solid var(--border);
     border-radius:16px; padding:24px; display:flex; flex-direction:column; gap:16px;
+    /* never taller than the window: long content (profiles, icon library, notes) scrolls inside the box
+       instead of pushing Save off-screen */
+    max-height:calc(100vh - 40px); overflow-y:auto;
   }
   .modal h2{ font-family:var(--font-display); font-size:17px; margin:0; }
   .field{ display:flex; flex-direction:column; gap:6px; }
@@ -751,12 +792,12 @@
       </div>
 
       <div class="field" id="tileProfileField" style="display:none;">
-        <label for="tileProfileSelect">Chrome profile</label>
+        <label id="tileProfileLabel">Chrome profile</label>
         <div id="tileProfileNoneYet" style="display:none;">
           <p class="hint">No Chrome profiles set up yet. <button type="button" class="hint-link-btn" id="openProfileSettingsFromTile">Set one up in Preferences</button> to make this link open under a specific account.</p>
         </div>
         <div id="tileProfileSelectWrap">
-          <select id="tileProfileSelect" class="field-select"></select>
+          <div id="tileProfileList" class="profile-choice-list" role="radiogroup" aria-labelledby="tileProfileLabel"></div>
           <p class="hint">Leave on the project default unless this specific link needs a different account.</p>
         </div>
       </div>
@@ -772,7 +813,14 @@
           </div>
         </div>
         <input type="file" id="iconFileInput" accept="image/*" style="display:none;">
-        <div class="asset-library-grid" id="iconLibraryGrid" style="display:none;"></div>
+        <div class="asset-library-panel" id="iconLibraryPanel" style="display:none;">
+          <div class="asset-library-toolbar">
+            <select id="iconLibraryFolder" class="field-select field-select--compact" aria-label="Show icons from folder" style="display:none;"></select>
+            <button type="button" class="hint-link-btn" id="iconLibraryOpenBtn">Open folder</button>
+            <button type="button" class="hint-link-btn" id="iconLibraryImportBtn">Import folder…</button>
+          </div>
+          <div class="asset-library-grid" id="iconLibraryGrid"></div>
+        </div>
         <p class="hint">Optional — pick any image to represent this tile, or reuse one already in your library. Otherwise, image files use their own thumbnail automatically, and everything else uses a default icon.</p>
       </div>
 
@@ -858,10 +906,30 @@
   </div>
 </div>
 
+<div class="overlay" id="noteOverlay">
+  <div class="modal" style="max-width:420px;">
+    <h2>Note for "<span id="noteTileName"></span>"</h2>
+    <div class="field">
+      <textarea id="noteTextarea" class="note-textarea" rows="6" maxlength="2000" placeholder="What is this? Why is it here? Which account or version? When do you need it?"></textarea>
+      <p class="hint" id="noteMetaHint"></p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="danger-btn" id="noteClearBtn">Clear note</button>
+      <button type="button" class="secondary-btn" id="noteCancelBtn">Cancel</button>
+      <button type="button" class="primary-btn" id="noteSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="backgroundLibraryOverlay">
   <div class="modal" style="max-width:420px;">
     <h2>Background library</h2>
     <p class="hint">Pick one already in your library, or use "Set background image" to upload a new one.</p>
+    <div class="asset-library-toolbar" style="margin-top:10px;">
+      <select id="backgroundLibraryFolder" class="field-select field-select--compact" aria-label="Show backgrounds from folder" style="display:none;"></select>
+      <button type="button" class="hint-link-btn" id="backgroundLibraryOpenBtn">Open folder</button>
+      <button type="button" class="hint-link-btn" id="backgroundLibraryImportBtn">Import folder…</button>
+    </div>
     <div class="asset-library-grid asset-library-grid--large" id="backgroundLibraryGrid"></div>
     <div class="modal-actions">
       <button type="button" class="secondary-btn" id="backgroundLibraryCloseBtn">Close</button>
@@ -931,6 +999,16 @@
     </div>
 
     <div class="settings-section">
+      <label class="settings-label">Website icons</label>
+      <label class="settings-toggle">
+        <input type="checkbox" id="settingsFaviconToggle">
+        <span>Fetch icons and page titles for link tiles automatically</span>
+      </label>
+      <p class="settings-hint">When you add a link, ProjQik asks that website — and only that website — for its icon and title. Nothing goes through a third-party service, and no cookies or logins are sent. Turn this off if you would rather links keep the default icon.</p>
+      <button type="button" class="secondary-btn" id="fetchAllIconsBtn">Fetch icons for my existing links</button>
+    </div>
+
+    <div class="settings-section">
       <label class="settings-label">Archived projects</label>
       <div id="archivedProjectsList" class="archived-list"></div>
     </div>
@@ -968,6 +1046,7 @@
       tileSize: 'medium',
       projectOrderCustomized: false, // fresh installs default to alphabetical order
       chromeProfiles: [],
+      fetchFavicons: true,
       projects: [
         { id:'p1', name:'Project 1', tiles: [], themeIndex: 0 },
         { id:'p2', name:'Project 2', tiles: [], themeIndex: 1 },
@@ -980,7 +1059,7 @@
   var RAIL_WIDTH_MIN = 200;
   var RAIL_WIDTH_MAX = 440;
 
-  var MAX_PROJECTS = 25;
+  var MAX_PROJECTS = 30;
 
   function isValidData(d){
     return !!d && Array.isArray(d.projects) && d.projects.length > 0 &&
@@ -1069,7 +1148,12 @@
     { accent:'#6FA88F', rgb:'111,168,143' }, // sea green
     { accent:'#C9A05B', rgb:'201,160,91' },  // amber tan
     { accent:'#7B8FC9', rgb:'123,143,201' }, // periwinkle
-    { accent:'#C96B8C', rgb:'201,107,140' }  // raspberry
+    { accent:'#C96B8C', rgb:'201,107,140' }, // raspberry
+    { accent:'#F2A98A', rgb:'242,169,138' }, // peach
+    { accent:'#4A66DD', rgb:'74,102,221' },  // royal blue
+    { accent:'#8A94A6', rgb:'138,148,166' }, // slate gray
+    { accent:'#B4D63F', rgb:'180,214,63' },  // lime
+    { accent:'#D0384F', rgb:'208,56,79' }    // crimson
   ];
 
   var state = loadData();
@@ -1079,6 +1163,7 @@
   if(typeof state.tileSize !== 'string') state.tileSize = 'medium';
   if(typeof state.projectOrderCustomized !== 'boolean') state.projectOrderCustomized = true; // see migrateThemeIndexes note
   if(!Array.isArray(state.chromeProfiles)) state.chromeProfiles = [];
+  if(typeof state.fetchFavicons !== 'boolean') state.fetchFavicons = true;
   var currentFilter = 'all';
   var editingTileId = null; // when set, modal is in edit mode
   var currentType = 'file';
@@ -1169,6 +1254,7 @@
   function iconPencil(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m17 3 4 4L7 21H3v-4Z"/></svg>'; }
   function iconTrash(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>'; }
   function iconArchive(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/></svg>'; }
+  function iconNote(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v11l-5 5H4Z"/><path d="M15 20v-5h5M8 9h8M8 13h4"/></svg>'; }
   function iconMerge(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v12a3 3 0 0 0 3 3h9M18 15l3 3-3 3M6 9h4"/></svg>'; }
   function iconCopy(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'; }
   function iconPlus(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>'; }
@@ -1216,7 +1302,7 @@
     for(var i = 0; i < THEMES.length; i++){
       if(!used[i]) return i;
     }
-    return state.projects.length % THEMES.length; // all colors taken; only possible past 20 projects
+    return state.projects.length % THEMES.length; // all colors taken; can't happen while the project limit matches the palette size
   }
 
   function addProject(){
@@ -1348,6 +1434,16 @@
       var duplicate = dest.tiles.find(function(t){ return tilesEffectivelyIdentical(tile, source, t, dest); });
       if(duplicate){
         mergedCount++;
+        // Combining two identical tiles must never quietly lose anything the absorbed one carried.
+        if(tile.note && !duplicate.note){
+          duplicate.note = tile.note;
+          if(tile.noteUpdatedAt) duplicate.noteUpdatedAt = tile.noteUpdatedAt;
+        } else if(tile.note && duplicate.note && tile.note !== duplicate.note){
+          duplicate.note = duplicate.note + '\n\n' + tile.note;
+          duplicate.noteUpdatedAt = new Date().toISOString();
+        }
+        if(!duplicate.customIcon && tile.customIcon) duplicate.customIcon = tile.customIcon;
+        if(!duplicate.faviconUrl && tile.faviconUrl) duplicate.faviconUrl = tile.faviconUrl;
       } else {
         dest.tiles.push(tile);
         keptCount++;
@@ -1454,7 +1550,7 @@
         },
         ondragover: function(ev){
           ev.preventDefault();
-          if(isFileDrag(ev)) return; // a real OS file/folder being dragged in — handled globally
+          if(isExternalDrag(ev)) return; // a real OS file/folder or a web link being dragged in — handled globally
           if(ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
           if(draggedProjectId && draggedProjectId !== p.id){
             btn.classList.add('drag-over');
@@ -1470,7 +1566,7 @@
           ev.preventDefault();
           btn.classList.remove('drag-over');
           btn.classList.remove('drag-over-tile');
-          if(isFileDrag(ev)) return; // dropping a real file onto a project tab isn't supported — no-op
+          if(isExternalDrag(ev)) return; // dropping a real file or link onto a project tab isn't supported — no-op
           if(draggedTileId){
             moveTileToProject(draggedTileId, draggedTileSourceProjectId, p.id);
             return;
@@ -1633,6 +1729,7 @@
   function tileIconMarkup(tile){
     var meta = TYPE_META[tile.type];
     if(tile.customIcon) return '<img src="' + tile.customIcon + '" alt="">';
+    if(tile.type === 'url' && tile.faviconUrl) return '<img class="is-favicon" src="' + tile.faviconUrl + '" alt="">';
     if(tile.autoThumbnail) return '<img src="' + tile.autoThumbnail + '" alt="">';
     return meta.icon();
   }
@@ -1655,7 +1752,7 @@
       onclick: function(ev){ ev.preventDefault(); openTile(tile); },
       ondragover: function(ev){
         ev.preventDefault();
-        if(isFileDrag(ev)) return; // a real OS file/folder being dragged in — handled globally, not as a reorder
+        if(isExternalDrag(ev)) return; // a real OS file/folder or web link being dragged in — handled globally, not as a reorder
         if(ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
         if(draggedTileId && draggedTileId !== tile.id) card.classList.add('drag-over');
       },
@@ -1665,7 +1762,7 @@
       ondrop: function(ev){
         ev.preventDefault();
         card.classList.remove('drag-over');
-        if(isFileDrag(ev)) return; // let the window-level handler add it as a new tile instead
+        if(isExternalDrag(ev)) return; // let the window-level handler add it as a new tile instead
         var fromId = draggedTileId || (ev.dataTransfer ? ev.dataTransfer.getData('text/plain') : null);
         if(fromId) moveTile(fromId, tile.id);
       }
@@ -1706,7 +1803,13 @@
         el('button', {
           type:'button', class:'tile__action-btn', title:'Edit', 'aria-label':'Edit ' + tile.label,
           onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); openEditModal(tile); }
-        }, [(function(){ var d = el('span', { html: iconPencil() }); return d.firstChild; })()])
+        }, [(function(){ var d = el('span', { html: iconPencil() }); return d.firstChild; })()]),
+        el('button', {
+          type:'button', class:'tile__action-btn tile__note-btn' + (tile.note ? ' has-note' : ''),
+          title: tile.note ? noteTooltip(tile.note) : 'Add a note',
+          'aria-label': (tile.note ? 'View note for ' : 'Add a note to ') + tile.label,
+          onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); openNoteEditor(tile); }
+        }, [(function(){ var d = el('span', { html: iconNote() }); return d.firstChild; })()])
       ])
     ]);
     return card;
@@ -1875,37 +1978,129 @@
     showToast('Background removed');
   });
 
-  var backgroundLibraryOverlay = document.getElementById('backgroundLibraryOverlay');
-  document.getElementById('bgLibraryBtn').addEventListener('click', function(){
-    var grid = document.getElementById('backgroundLibraryGrid');
-    grid.innerHTML = '<div class="asset-library-grid__empty">Loading\u2026</div>';
-    backgroundLibraryOverlay.classList.add('show');
-    window.projqik.listBackgroundAssets().then(function(result){
+  // Shared by the icon picker and the background picker: a folder filter, the image grid,
+  // "Open folder" (reveal in Finder) and "Import folder…" (copy a whole tree of images in).
+  function createLibraryBrowser(opts){
+    var files = [];
+    var folders = [];
+    var selected = '__all__';
+
+    function inFolder(file, folder){
+      return file.folder === folder || file.folder.indexOf(folder + '/') === 0;
+    }
+    function folderLabel(folder){ return folder.split('/').join(' \u203A '); }
+    function emptyMessage(text){
+      return el('div', { class:'asset-library-grid__empty' }, [document.createTextNode(text)]);
+    }
+
+    function renderFolderSelect(){
+      var sel = opts.folderSelect;
+      sel.innerHTML = '';
+      if(folders.length === 0){ sel.style.display = 'none'; selected = '__all__'; return; }
+      sel.style.display = '';
+      sel.appendChild(el('option', { value:'__all__' }, [document.createTextNode('All folders (' + files.length + ')')]));
+      var topLevel = files.filter(function(f){ return f.folder === ''; }).length;
+      if(topLevel > 0) sel.appendChild(el('option', { value:'' }, [document.createTextNode('Top level (' + topLevel + ')')]));
+      folders.forEach(function(folder){
+        var count = files.filter(function(f){ return inFolder(f, folder); }).length;
+        sel.appendChild(el('option', { value: folder }, [document.createTextNode(folderLabel(folder) + ' (' + count + ')')]));
+      });
+      sel.value = selected;
+      if(sel.value !== selected){ selected = '__all__'; sel.value = '__all__'; }
+    }
+
+    function renderGrid(){
+      var grid = opts.grid;
       grid.innerHTML = '';
-      var files = (result && result.ok) ? result.files : [];
-      if(files.length === 0){
-        grid.appendChild(el('div', { class:'asset-library-grid__empty' }, [document.createTextNode('No backgrounds in your library yet \u2014 use "Set background image" to add one.')]));
+      var shown = files.filter(function(f){
+        if(selected === '__all__') return true;
+        if(selected === '') return f.folder === '';
+        return inFolder(f, selected);
+      });
+      if(shown.length === 0){
+        grid.appendChild(emptyMessage(files.length === 0 ? opts.emptyText : 'Nothing in this folder yet.'));
         return;
       }
-      files.forEach(function(f){
+      shown.forEach(function(f){
         grid.appendChild(el('button', {
-          type:'button', class:'asset-library-item', title:f.filename,
-          onclick: function(){
-            var project = getActiveProject();
-            project.background = f.url;
-            saveData();
-            applyMainTheme(project);
-            updateBgControls(project);
-            backgroundLibraryOverlay.classList.remove('show');
-            showToast('Background set for "' + project.name + '"');
-          }
-        }, [el('img', { src:f.url, alt:'' })]));
+          type:'button', class:'asset-library-item', title: (f.folder ? f.folder + ' / ' : '') + f.filename,
+          onclick: function(){ opts.onPick(f); }
+        }, [el('img', { src: f.url, alt:'', loading:'lazy' })]));
       });
-    }).catch(function(err){
-      console.error('ProjQik: listBackgroundAssets failed', err);
-      grid.innerHTML = '';
-      grid.appendChild(el('div', { class:'asset-library-grid__empty' }, [document.createTextNode('Could not load your background library.')]));
+    }
+
+    function refresh(){
+      opts.grid.innerHTML = '';
+      opts.grid.appendChild(emptyMessage('Loading\u2026'));
+      return opts.list().then(function(result){
+        var ok = !!(result && result.ok);
+        files = ok ? result.files : [];
+        folders = ok && result.folders ? result.folders : [];
+        files.sort(function(a, b){
+          return a.folder.localeCompare(b.folder) || a.filename.localeCompare(b.filename, undefined, { numeric:true, sensitivity:'base' });
+        });
+        renderFolderSelect();
+        renderGrid();
+      }).catch(function(err){
+        console.error('ProjQik: library listing failed', err);
+        opts.grid.innerHTML = '';
+        opts.grid.appendChild(emptyMessage('Could not load your library.'));
+      });
+    }
+
+    opts.folderSelect.addEventListener('change', function(){
+      selected = opts.folderSelect.value;
+      renderGrid();
     });
+    opts.openBtn.addEventListener('click', function(){
+      window.projqik.openAssetFolder(opts.kind).then(function(r){
+        if(!r || !r.ok) showToast((r && r.error) || 'Could not open the folder.', true);
+      }).catch(function(){ showToast('Could not open the folder.', true); });
+    });
+    opts.importBtn.addEventListener('click', function(){
+      window.projqik.importAssetFolder(opts.kind).then(function(r){
+        if(!r || !r.ok){ showToast((r && r.error) || 'Could not import that folder.', true); return; }
+        if(r.cancelled) return;
+        selected = r.folder;
+        refresh();
+        var msg = r.imported === 0
+          ? 'No new images found in "' + r.folder + '".'
+          : 'Imported ' + r.imported + ' image' + (r.imported === 1 ? '' : 's') + ' into "' + r.folder + '"';
+        if(r.existing) msg += ' (' + r.existing + ' already there)';
+        if(r.downscaled) msg += ' \u00B7 ' + r.downscaled + ' resized to save space';
+        if(r.truncated) msg += ' \u00B7 stopped at the ' + 3000 + '-image limit';
+        showToast(msg, r.imported === 0 && r.existing === 0);
+      }).catch(function(err){
+        console.error('ProjQik: import folder failed', err);
+        showToast('Could not import that folder.', true);
+      });
+    });
+
+    return { refresh: refresh };
+  }
+
+  var backgroundLibraryOverlay = document.getElementById('backgroundLibraryOverlay');
+  var backgroundLibrary = createLibraryBrowser({
+    kind: 'backgrounds',
+    list: function(){ return window.projqik.listBackgroundAssets(); },
+    folderSelect: document.getElementById('backgroundLibraryFolder'),
+    grid: document.getElementById('backgroundLibraryGrid'),
+    openBtn: document.getElementById('backgroundLibraryOpenBtn'),
+    importBtn: document.getElementById('backgroundLibraryImportBtn'),
+    emptyText: 'No backgrounds in your library yet \u2014 use "Set background image" or "Import folder\u2026" to add some.',
+    onPick: function(file){
+      var project = getActiveProject();
+      project.background = file.url;
+      saveData();
+      applyMainTheme(project);
+      updateBgControls(project);
+      backgroundLibraryOverlay.classList.remove('show');
+      showToast('Background set for "' + project.name + '"');
+    }
+  });
+  document.getElementById('bgLibraryBtn').addEventListener('click', function(){
+    backgroundLibraryOverlay.classList.add('show');
+    backgroundLibrary.refresh();
   });
   document.getElementById('backgroundLibraryCloseBtn').addEventListener('click', function(){
     backgroundLibraryOverlay.classList.remove('show');
@@ -2078,36 +2273,28 @@
     });
   });
 
+  var iconLibraryPanel = document.getElementById('iconLibraryPanel');
+  var iconLibrary = createLibraryBrowser({
+    kind: 'icons',
+    list: function(){ return window.projqik.listIconAssets(); },
+    folderSelect: document.getElementById('iconLibraryFolder'),
+    grid: iconLibraryGrid,
+    openBtn: document.getElementById('iconLibraryOpenBtn'),
+    importBtn: document.getElementById('iconLibraryImportBtn'),
+    emptyText: 'No icons in your library yet \u2014 upload one, or use "Import folder\u2026" to add a whole set.',
+    onPick: function(file){
+      pendingCustomIcon = file.url;
+      renderIconPickerPreview();
+      iconLibraryPanel.style.display = 'none';
+    }
+  });
   iconBrowseBtn.addEventListener('click', function(){
-    var showing = iconLibraryGrid.style.display !== 'none';
-    if(showing){
-      iconLibraryGrid.style.display = 'none';
+    if(iconLibraryPanel.style.display !== 'none'){
+      iconLibraryPanel.style.display = 'none';
       return;
     }
-    iconLibraryGrid.innerHTML = '<div class="asset-library-grid__empty">Loading\u2026</div>';
-    iconLibraryGrid.style.display = '';
-    window.projqik.listIconAssets().then(function(result){
-      iconLibraryGrid.innerHTML = '';
-      var files = (result && result.ok) ? result.files : [];
-      if(files.length === 0){
-        iconLibraryGrid.appendChild(el('div', { class:'asset-library-grid__empty' }, [document.createTextNode('No icons in your library yet \u2014 upload one to get started.')]));
-        return;
-      }
-      files.forEach(function(f){
-        iconLibraryGrid.appendChild(el('button', {
-          type:'button', class:'asset-library-item', title:f.filename,
-          onclick: function(){
-            pendingCustomIcon = f.url;
-            renderIconPickerPreview();
-            iconLibraryGrid.style.display = 'none';
-          }
-        }, [el('img', { src:f.url, alt:'' })]));
-      });
-    }).catch(function(err){
-      console.error('ProjQik: listIconAssets failed', err);
-      iconLibraryGrid.innerHTML = '';
-      iconLibraryGrid.appendChild(el('div', { class:'asset-library-grid__empty' }, [document.createTextNode('Could not load your icon library.')]));
-    });
+    iconLibraryPanel.style.display = '';
+    iconLibrary.refresh();
   });
 
   iconResetBtn.addEventListener('click', function(){
@@ -2237,9 +2424,9 @@
 
   function refreshTileProfileField(){
     var field = document.getElementById('tileProfileField');
-    var select = document.getElementById('tileProfileSelect');
+    var list = document.getElementById('tileProfileList');
     var noneYet = document.getElementById('tileProfileNoneYet');
-    var selectWrap = document.getElementById('tileProfileSelectWrap');
+    var listWrap = document.getElementById('tileProfileSelectWrap');
     if(currentType !== 'url'){
       field.style.display = 'none';
       return;
@@ -2247,21 +2434,35 @@
     field.style.display = '';
     if(state.chromeProfiles.length === 0){
       noneYet.style.display = '';
-      selectWrap.style.display = 'none';
+      listWrap.style.display = 'none';
       return;
     }
     noneYet.style.display = 'none';
-    selectWrap.style.display = '';
-    select.innerHTML = '';
+    listWrap.style.display = '';
+    list.innerHTML = '';
     var activeProject = getActiveProject();
     var projectDefault = activeProject ? getChromeProfileById(activeProject.defaultChromeProfileId) : null;
-    var defaultOptionText = 'Use project default' + (projectDefault ? ' (' + projectDefault.label + ')' : ' (none set)');
-    select.appendChild(el('option', { value:'' }, [document.createTextNode(defaultOptionText)]));
+
+    function addChoice(value, dotColor, mainText, subText){
+      var selected = (pendingChromeProfileId || '') === value;
+      var textKids = [ el('span', { class:'profile-choice__main' }, [document.createTextNode(mainText)]) ];
+      if(subText) textKids.push(el('span', { class:'profile-choice__sub' }, [document.createTextNode(subText)]));
+      list.appendChild(el('button', {
+        type:'button', role:'radio', 'aria-checked': selected ? 'true' : 'false',
+        class:'profile-choice' + (selected ? ' is-selected' : ''), 'data-value': value,
+        onclick: function(){
+          pendingChromeProfileId = value || null;
+          refreshTileProfileField();
+        }
+      }, [
+        el('span', { class:'profile-choice__dot', style: dotColor ? 'background:' + dotColor + ';' : '' }),
+        el('span', { class:'profile-choice__text' }, textKids)
+      ]));
+    }
+    addChoice('', null, 'Use project default', projectDefault ? profileDisplayLabel(projectDefault) : 'None set \u2014 opens in your normal browser');
     state.chromeProfiles.forEach(function(profile){
-      select.appendChild(el('option', { value: profile.id }, [document.createTextNode(profileDisplayLabel(profile))]));
+      addChoice(profile.id, profile.color, profile.label, [profile.email, profile.directory].filter(Boolean).join(' \u00B7 '));
     });
-    select.value = pendingChromeProfileId || '';
-    select.onchange = function(){ pendingChromeProfileId = select.value || null; };
   }
 
   function setType(type){
@@ -2391,6 +2592,7 @@
     if(settingsOverlay.classList.contains('show')) settingsOverlay.classList.remove('show');
     if(mergeOverlay.classList.contains('show')){ mergeOverlay.classList.remove('show'); mergeSourceProject = null; }
     if(backgroundLibraryOverlay.classList.contains('show')) backgroundLibraryOverlay.classList.remove('show');
+    if(noteOverlay.classList.contains('show')) closeNoteEditor();
   });
 
   deleteBtn.addEventListener('click', function(){
@@ -2461,29 +2663,98 @@
       }
     }
 
-    function finishSave(tileObj, isNew){
+    function finishSave(tileObj, isNew, previous){
       applyProfileField(tileObj);
       applyIconFields(tileObj, function(){
+        var targetChanged = !previous || previous.target !== tileObj.target || previous.type !== tileObj.type;
+        if(tileObj.type !== 'url' || targetChanged) delete tileObj.faviconUrl;
+        delete tileObj.labelAuto; // the person has now seen and confirmed this label
         saveData();
         closeModal();
         renderRail();
         renderMain();
         showToast(isNew ? 'Tile added' : 'Tile updated');
+        if(tileObj.type === 'url' && !tileObj.faviconUrl) fetchSiteMetaForTile(tileObj.id, {});
       });
     }
 
     if(editingTileId){
       var existing = project.tiles.find(function(t){ return t.id === editingTileId; });
       if(existing){
+        var previous = { target: existing.target, type: existing.type };
         existing.label = label;
         existing.target = target;
         existing.type = currentType;
-        finishSave(existing, false);
+        finishSave(existing, false, previous);
       }
     } else {
       var newTile = { id: uid(), label: label, target: target, type: currentType };
       project.tiles.push(newTile);
-      finishSave(newTile, true);
+      finishSave(newTile, true, null);
+    }
+  });
+
+  // ---------- tile notes ----------
+  var noteOverlay = document.getElementById('noteOverlay');
+  var noteTextarea = document.getElementById('noteTextarea');
+  var noteTileName = document.getElementById('noteTileName');
+  var noteMetaHint = document.getElementById('noteMetaHint');
+  var noteClearBtn = document.getElementById('noteClearBtn');
+  var noteEditingTile = null;
+
+  function noteTooltip(text){
+    var t = (text || '').trim();
+    return t.length > 400 ? t.slice(0, 400) + '\u2026' : t;
+  }
+
+  function openNoteEditor(tile){
+    noteEditingTile = tile;
+    noteTileName.textContent = tile.label;
+    noteTextarea.value = tile.note || '';
+    noteClearBtn.style.display = tile.note ? '' : 'none';
+    var when = tile.note && tile.noteUpdatedAt ? new Date(tile.noteUpdatedAt) : null;
+    noteMetaHint.textContent = when && !isNaN(when.getTime())
+      ? 'Last updated ' + when.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' })
+      : 'Jot down what this is, why it matters, which account it uses, or when to reach for it.';
+    noteOverlay.classList.add('show');
+    noteTextarea.focus();
+  }
+
+  function closeNoteEditor(){
+    noteOverlay.classList.remove('show');
+    noteEditingTile = null;
+  }
+
+  function saveNote(){
+    if(!noteEditingTile) return;
+    var tile = noteEditingTile;
+    var text = noteTextarea.value.trim();
+    if(text){
+      if(tile.note !== text){
+        tile.note = text;
+        tile.noteUpdatedAt = new Date().toISOString();
+      }
+    } else {
+      delete tile.note;
+      delete tile.noteUpdatedAt;
+    }
+    saveData();
+    closeNoteEditor();
+    renderMain();
+    showToast(text ? 'Note saved' : 'Note removed');
+  }
+
+  document.getElementById('noteSaveBtn').addEventListener('click', saveNote);
+  document.getElementById('noteCancelBtn').addEventListener('click', closeNoteEditor);
+  noteClearBtn.addEventListener('click', function(){
+    noteTextarea.value = '';
+    saveNote();
+  });
+  noteOverlay.addEventListener('click', function(ev){ if(ev.target === noteOverlay) closeNoteEditor(); });
+  noteTextarea.addEventListener('keydown', function(ev){
+    if((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter'){
+      ev.preventDefault();
+      saveNote();
     }
   });
 
@@ -2518,6 +2789,7 @@
         if(typeof state.tileSize !== 'string') state.tileSize = 'medium';
         if(typeof state.projectOrderCustomized !== 'boolean') state.projectOrderCustomized = true;
         if(!Array.isArray(state.chromeProfiles)) state.chromeProfiles = [];
+        if(typeof state.fetchFavicons !== 'boolean') state.fetchFavicons = true;
         if(!state.projects.some(function(p){ return p.id === state.activeProjectId; })){
           state.activeProjectId = state.projects[0].id;
         }
@@ -2611,6 +2883,93 @@
     return !!(ev.dataTransfer && ev.dataTransfer.types && Array.prototype.indexOf.call(ev.dataTransfer.types, 'Files') !== -1);
   }
 
+  // A drag that started inside ProjQik itself (reordering a tile or tab, or selecting text in a
+  // field) must never be mistaken for a link dragged in from a browser.
+  var pageDragActive = false;
+  document.addEventListener('mousedown', function(){ pageDragActive = false; }, true);
+  document.addEventListener('dragstart', function(){ pageDragActive = true; }, true);
+  document.addEventListener('dragend', function(){ pageDragActive = false; }, true);
+
+  function isUrlDrag(ev){
+    if(pageDragActive || draggedTileId || draggedProjectId) return false;
+    if(document.querySelector('.overlay.show')) return false; // a dialog is open — let its own fields take the drop
+    var target = ev.target;
+    if(target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return false;
+    var types = ev.dataTransfer && ev.dataTransfer.types;
+    if(!types) return false;
+    function has(t){ return Array.prototype.indexOf.call(types, t) !== -1; }
+    if(has('Files')) return false;
+    return has('text/uri-list') || has('text/x-moz-url') || has('text/plain');
+  }
+
+  function isExternalDrag(ev){ return isFileDrag(ev) || isUrlDrag(ev); }
+
+  function extractDroppedUrl(dt){
+    var candidates = [];
+    try{
+      var uriList = dt.getData('text/uri-list');
+      if(uriList) uriList.split(/\r?\n/).forEach(function(line){
+        line = line.trim();
+        if(line && line.charAt(0) !== '#') candidates.push(line);
+      });
+      var moz = dt.getData('text/x-moz-url');
+      if(moz){
+        var firstLine = moz.split(/\r?\n/)[0];
+        if(firstLine) candidates.push(firstLine.trim());
+      }
+      var plain = dt.getData('text/plain');
+      if(plain) candidates.push(plain.trim().split(/\s+/)[0]);
+    }catch(err){ /* fall through to "not a link" */ }
+    for(var i = 0; i < candidates.length; i++){
+      if(/^https?:\/\/\S+$/i.test(candidates[i])) return candidates[i];
+    }
+    return null;
+  }
+
+  // The visible text of a dragged link (its anchor text, or Firefox's title line), when there is one.
+  function extractDroppedLinkText(dt){
+    try{
+      var html = dt.getData('text/html');
+      if(html){
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var anchor = doc.querySelector('a');
+        var text = anchor ? (anchor.textContent || '').replace(/\s+/g, ' ').trim() : '';
+        if(text) return text.slice(0, 120);
+      }
+      var moz = dt.getData('text/x-moz-url');
+      if(moz){
+        var lines = moz.split(/\r?\n/);
+        if(lines[1] && lines[1].trim()) return lines[1].trim().slice(0, 120);
+      }
+    }catch(err){ /* no usable text */ }
+    return '';
+  }
+
+  function handleDroppedLink(dt){
+    var url = extractDroppedUrl(dt);
+    if(!url){
+      showToast('That doesn\u2019t look like a web address.', true);
+      return;
+    }
+    var project = getActiveProject();
+    var duplicate = project.tiles.find(function(t){ return t.type === 'url' && t.target === url; });
+    if(duplicate){
+      showToast('That link is already in "' + project.name + '".', true);
+      return;
+    }
+    var host;
+    try{ host = new URL(url).hostname.replace(/^www\./, ''); }catch(err){ host = url; }
+    var text = extractDroppedLinkText(dt);
+    var tile = { id: uid(), label: text || host, target: url, type: 'url' };
+    if(!text) tile.labelAuto = true; // a placeholder — replaced by the page's real title once it's looked up
+    project.tiles.push(tile);
+    saveData();
+    renderRail();
+    renderMain();
+    showToast('Link added');
+    fetchSiteMetaForTile(tile.id, { wantTitle: !text });
+  }
+
   function addTileFromDroppedPath(absolutePath){
     return window.projqik.getPathInfo(absolutePath).then(function(info){
       if(!info || !info.exists){
@@ -2674,29 +3033,34 @@
   }
 
   window.addEventListener('dragenter', function(ev){
-    if(!isFileDrag(ev)) return;
+    if(!isExternalDrag(ev)) return;
     ev.preventDefault();
     dragEnterCounter++;
     dropOverlayProjectName.textContent = getActiveProject().name;
     dropOverlay.classList.add('show');
   });
   window.addEventListener('dragover', function(ev){
-    if(!isFileDrag(ev)) return;
+    if(!isExternalDrag(ev)) return;
     ev.preventDefault();
     if(ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy';
   });
   window.addEventListener('dragleave', function(ev){
-    if(!isFileDrag(ev)) return;
+    if(!isExternalDrag(ev)) return;
     dragEnterCounter = Math.max(0, dragEnterCounter - 1);
     if(dragEnterCounter === 0) dropOverlay.classList.remove('show');
   });
   window.addEventListener('drop', function(ev){
-    if(!isFileDrag(ev)) return;
+    var fileDrop = isFileDrag(ev);
+    if(!fileDrop && !isUrlDrag(ev)) return;
     ev.preventDefault();
     dragEnterCounter = 0;
     dropOverlay.classList.remove('show');
-    if(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length > 0){
-      handleDroppedFiles(ev.dataTransfer.files);
+    if(fileDrop){
+      if(ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length > 0){
+        handleDroppedFiles(ev.dataTransfer.files);
+      }
+    } else {
+      handleDroppedLink(ev.dataTransfer);
     }
   });
 
@@ -2718,9 +3082,10 @@
         var target = tile.target.toLowerCase();
         var labelIdx = label.indexOf(q);
         var targetIdx = target.indexOf(q);
-        if(labelIdx === -1 && targetIdx === -1) return;
-        var score = labelIdx === 0 ? 0 : (labelIdx > -1 ? 1 : 2);
-        results.push({ tile: tile, project: project, score: score });
+        var noteIdx = (tile.note || '').toLowerCase().indexOf(q);
+        if(labelIdx === -1 && targetIdx === -1 && noteIdx === -1) return;
+        var score = labelIdx === 0 ? 0 : (labelIdx > -1 ? 1 : (targetIdx > -1 ? 2 : 3));
+        results.push({ tile: tile, project: project, score: score, noteOnly: labelIdx === -1 && targetIdx === -1 });
       });
     });
     results.sort(function(a, b){
@@ -2763,7 +3128,7 @@
           el('div', { class:'search-result__icon', html: tileIconMarkup(r.tile) }),
           el('div', { class:'search-result__text' }, [
             el('div', { class:'search-result__label' }, [document.createTextNode(r.tile.label)]),
-            el('div', { class:'search-result__meta' }, [document.createTextNode(r.tile.target)])
+            el('div', { class:'search-result__meta' }, [document.createTextNode(r.noteOnly ? 'Note: ' + noteTooltip(r.tile.note).replace(/\s+/g, ' ').slice(0, 90) : r.tile.target)])
           ]),
           el('div', { class:'search-result__project' }, [
             el('span', { class:'search-result__dot', style:'background:' + theme.accent + ';' }),
@@ -2839,6 +3204,7 @@
 
     refreshArchivedList();
     refreshChromeProfilesList();
+    refreshFaviconSettings();
   }
 
   function detectChromeProfiles(){
@@ -2990,6 +3356,104 @@
 
   document.getElementById('settingsExportBtn').addEventListener('click', exportData);
   document.getElementById('settingsImportBtn').addEventListener('click', importData);
+
+  // ---------- website icons & titles for link tiles ----------
+  function findTileById(id){
+    for(var i = 0; i < state.projects.length; i++){
+      var tile = state.projects[i].tiles.find(function(t){ return t.id === id; });
+      if(tile) return { tile: tile, project: state.projects[i] };
+    }
+    return null;
+  }
+
+  // Looks up the icon (and optionally the title) for one link tile and applies it if the tile is
+  // still there and still points at the same address. Resolves true when the tile has an icon.
+  // options: { wantTitle, silent (skip saving/re-rendering — for bulk runs), force (ignore the setting) }
+  function fetchSiteMetaForTile(tileId, options){
+    options = options || {};
+    if(!state.fetchFavicons && !options.force) return Promise.resolve(false);
+    var found = findTileById(tileId);
+    if(!found || found.tile.type !== 'url') return Promise.resolve(false);
+    var url = found.tile.target;
+    return window.projqik.fetchSiteMeta(url, { wantTitle: !!options.wantTitle }).then(function(meta){
+      var again = findTileById(tileId);
+      if(!again || again.tile.target !== url) return false; // deleted or re-pointed while we waited
+      var changed = false;
+      if(meta && meta.ok){
+        if(meta.faviconUrl && again.tile.faviconUrl !== meta.faviconUrl){
+          again.tile.faviconUrl = meta.faviconUrl;
+          changed = true;
+        }
+        if(options.wantTitle && meta.title && again.tile.labelAuto){
+          again.tile.label = meta.title;
+          delete again.tile.labelAuto;
+          changed = true;
+        }
+      }
+      if(changed && !options.silent){
+        saveData();
+        renderMain();
+      }
+      return !!again.tile.faviconUrl;
+    }).catch(function(err){
+      console.error('ProjQik: website icon lookup failed', err);
+      return false;
+    });
+  }
+
+  function linksNeedingIcons(){
+    var ids = [];
+    state.projects.forEach(function(p){
+      p.tiles.forEach(function(t){
+        if(t.type === 'url' && !t.faviconUrl && !t.customIcon) ids.push(t.id);
+      });
+    });
+    return ids;
+  }
+
+  var settingsFaviconToggle = document.getElementById('settingsFaviconToggle');
+  var fetchAllIconsBtn = document.getElementById('fetchAllIconsBtn');
+
+  function refreshFaviconSettings(){
+    settingsFaviconToggle.checked = !!state.fetchFavicons;
+    var n = linksNeedingIcons().length;
+    fetchAllIconsBtn.textContent = n > 0 ? 'Fetch icons for my existing links (' + n + ')' : 'Fetch icons for my existing links';
+  }
+
+  function fetchIconsForExistingLinks(){
+    var queue = linksNeedingIcons();
+    if(queue.length === 0){
+      showToast('Every link that can have an icon already does.');
+      return;
+    }
+    var next = 0;
+    var finished = 0;
+    var found = 0;
+    fetchAllIconsBtn.disabled = true;
+    function worker(){
+      if(next >= queue.length) return Promise.resolve();
+      var id = queue[next++];
+      return fetchSiteMetaForTile(id, { force: true, silent: true }).then(function(ok){
+        finished++;
+        if(ok) found++;
+        if(finished % 4 === 0 && finished < queue.length) showToast('Fetching icons\u2026 ' + finished + ' of ' + queue.length);
+        return worker();
+      });
+    }
+    Promise.all([worker(), worker(), worker()]).then(function(){
+      fetchAllIconsBtn.disabled = false;
+      saveData();
+      renderMain();
+      refreshFaviconSettings();
+      showToast('Found icons for ' + found + ' of ' + queue.length + ' link' + (queue.length === 1 ? '' : 's'));
+    });
+  }
+
+  settingsFaviconToggle.addEventListener('change', function(){
+    state.fetchFavicons = settingsFaviconToggle.checked;
+    saveData();
+  });
+  fetchAllIconsBtn.addEventListener('click', fetchIconsForExistingLinks);
 
   // ---------- boot ----------
   function boot(){
