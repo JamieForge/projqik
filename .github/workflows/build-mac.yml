@@ -7,7 +7,7 @@ on:
     tags: ['v*']
 
 jobs:
-  build:
+  build-mac:
     runs-on: macos-15
     steps:
       - name: Check out code
@@ -61,8 +61,64 @@ jobs:
             dist/*.zip
           retention-days: 14
 
+  build-linux:
+    # PLACEHOLDER — Linux app support is still in progress (post-launch).
+    # continue-on-error keeps the Mac pipeline green until it's ready.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Linux app
+        run: npx electron-builder --linux --publish=never
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: projqik-linux-builds
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+          retention-days: 14
+
+  build-windows:
+    # PLACEHOLDER — Windows app support is still in progress (post-launch).
+    # continue-on-error keeps the Mac pipeline green until it's ready.
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Windows app
+        run: npx electron-builder --win --publish=never
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: projqik-windows-builds
+          path: dist/*.exe
+          retention-days: 14
+
   release:
-    needs: build
+    needs: [build-mac, build-linux, build-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -71,8 +127,8 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: projqik-mac-builds
           path: dist
+          merge-multiple: true
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
