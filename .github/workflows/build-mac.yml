@@ -135,9 +135,17 @@ jobs:
           VER="${GITHUB_REF#refs/tags/v}"
           echo "Files before rename:"
           ls -la
-          # macOS — Apple Silicon vs Intel, back to .dmg like 3.1.0
+          # macOS Apple Silicon (arm64 dmg always carries the arch suffix)
           mv "ProjQik-${VER}-arm64.dmg" "ProjQik-${VER}-Mac-AppleSilicon.dmg"
-          mv "ProjQik-${VER}-x64.dmg" "ProjQik-${VER}-Mac-Intel.dmg"
+          # macOS Intel — electron-builder omits the arch suffix for x64,
+          # but handle both namings so a builder change can't slip through
+          if [ -f "ProjQik-${VER}.dmg" ]; then
+            mv "ProjQik-${VER}.dmg" "ProjQik-${VER}-Mac-Intel.dmg"
+          elif [ -f "ProjQik-${VER}-x64.dmg" ]; then
+            mv "ProjQik-${VER}-x64.dmg" "ProjQik-${VER}-Mac-Intel.dmg"
+          else
+            echo "ERROR: Intel dmg not found!"; ls -la; exit 1
+          fi
           # Windows
           mv "ProjQik Setup ${VER}.exe" "ProjQik-${VER}-Windows.exe"
           # Linux
