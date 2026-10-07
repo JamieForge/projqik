@@ -1,6 +1,6 @@
 {
   "name": "projqik",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Instant access to the files, folders, apps, and links for each of your projects \u2014 by Freedom Forge AI.",
   "main": "main.js",
   "private": true,
@@ -35,13 +35,13 @@
       "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [
         {
-          "target": "zip",
+          "target": "dmg",
           "arch": [
             "x64"
           ]
         },
         {
-          "target": "zip",
+          "target": "dmg",
           "arch": [
             "arm64"
           ]

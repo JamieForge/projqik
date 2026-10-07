@@ -58,7 +58,6 @@ jobs:
           name: projqik-mac-builds
           path: |
             dist/*.dmg
-            dist/*.zip
           retention-days: 14
 
   build-linux:
@@ -129,6 +128,22 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
+      - name: Rename artifacts to plain-language file names
+        run: |
+          cd dist
+          VER="${GITHUB_REF#refs/tags/v}"
+          echo "Files before rename:"
+          ls -la
+          # macOS — Apple Silicon vs Intel, back to .dmg like 3.1.0
+          mv "ProjQik-${VER}-arm64.dmg" "ProjQik-${VER}-Mac-AppleSilicon.dmg"
+          mv "ProjQik-${VER}-x64.dmg" "ProjQik-${VER}-Mac-Intel.dmg"
+          # Windows
+          mv "ProjQik Setup ${VER}.exe" "ProjQik-${VER}-Windows.exe"
+          # Linux
+          mv "ProjQik-${VER}.AppImage" "ProjQik-${VER}-Linux.AppImage"
+          echo "Files after rename:"
+          ls -la
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

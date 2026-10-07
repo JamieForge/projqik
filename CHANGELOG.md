@@ -1,5 +1,12 @@
 # ProjQik changelog
 
+## 3.2.1
+- Restored Mac disk images: downloads are .dmg files again (one for Apple Silicon Macs, one for
+  Intel Macs), matching 3.1.0.
+- Download file names are now plain language — no guessing which file is yours:
+  ProjQik-3.2.1-Mac-AppleSilicon.dmg, ProjQik-3.2.1-Mac-Intel.dmg, ProjQik-3.2.1-Windows.exe,
+  ProjQik-3.2.1-Linux.AppImage.
+
 ## 3.2.0
 - Launch splash screen: ProjQik opens with a short cinematic welcome (Freedom Forge AI credit, the
   ProjQik mark slowly zooming in, then a fade into the app). Click or press any key to skip. It plays
