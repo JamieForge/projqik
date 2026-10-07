@@ -45,6 +45,13 @@ contextBridge.exposeInMainWorld('projqik', {
   // Same as saveIconAsset, for the shared background image library.
   saveBackgroundAsset: (dataUrl) => ipcRenderer.invoke('save-background-asset', dataUrl),
 
+  // Opens a Finder chooser that starts inside the icon library. Resolves to
+  // { ok: true, cancelled: true } or { ok: true, url, inLibrary } or { ok: false, error }.
+  chooseIconFromFinder: () => ipcRenderer.invoke('choose-icon-from-finder'),
+
+  // Reads an Application tile's own icon. Resolves to { ok: true, url } or { ok: false }.
+  getAppIcon: (appPath, force) => ipcRenderer.invoke('get-app-icon', appPath, !!force),
+
   // Lists everything currently in the icon library. Resolves to { ok: true, files: [{filename, url}] }.
   listIconAssets: () => ipcRenderer.invoke('list-icon-assets'),
 

@@ -2,8 +2,9 @@ const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, nativeImage }
 const path = require('path');
 const { pathToFileURL } = require('url');
 const fs = require('fs/promises');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const crypto = require('crypto');
+const os = require('os');
 const AdmZip = require('adm-zip');
 
 // IMPORTANT: this app has been renamed twice (Launchpad -> ThrusterPad -> ProjQik). Each rename
@@ -445,6 +446,261 @@ ipcMain.handle('import-asset-folder', async (event, kind) => {
   // keep their structure beneath that category.
   await importFolderTree(kind, srcDir, [topFolder], 0, stats);
   return Object.assign({ ok:true, cancelled:false, folder: topFolder }, stats);
+});
+
+// ---------- IPC: pick an icon image from Finder ----------
+// The in-app library grid already lets people pick an icon; this opens a real Finder chooser that
+// starts inside the icon library (subfolders included). A picture chosen from inside the library is
+// used in place; a picture from anywhere else is copied into the library first, so it keeps working
+// (and is included in backups) even if the original is moved or deleted.
+ipcMain.handle('choose-icon-from-finder', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  try{ await fs.mkdir(ASSET_DIRS.icons, { recursive: true }); }catch(err){ /* the dialog still opens */ }
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Choose an icon image',
+    defaultPath: ASSET_DIRS.icons,
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp', 'avif'] }]
+  });
+  if(result.canceled || !result.filePaths || result.filePaths.length === 0) return { ok:true, cancelled:true };
+  return importChosenIcon(result.filePaths[0]);
+});
+
+async function importChosenIcon(filePath){
+  const ext = path.extname(filePath).toLowerCase();
+  if(!IMAGE_MIME_TYPES[ext]) return { ok:false, error:'That doesn’t look like a supported image.' };
+  let st;
+  try{ st = await fs.stat(filePath); }catch(err){ return { ok:false, error:'Could not read that file.' }; }
+  if(!st.isFile()) return { ok:false, error:'Could not read that file.' };
+  if(st.size > IMPORT_MAX_BYTES) return { ok:false, error:'That image is too large to use as an icon.' };
+
+  // Already inside the icon library? Then just reference it where it is.
+  try{
+    const realLibrary = await fs.realpath(ASSET_DIRS.icons);
+    const realFile = await fs.realpath(filePath);
+    const rel = path.relative(realLibrary, realFile);
+    if(rel && !rel.startsWith('..') && !path.isAbsolute(rel)){
+      const segments = rel.split(path.sep);
+      if(safeAssetPath('icons', segments)) return { ok:true, cancelled:false, url: assetUrl('icons', segments), inLibrary:true };
+    }
+  }catch(err){ /* fall through to copying it in */ }
+
+  // Outside the library: copy it in at the top level, keeping a readable name when it is free.
+  const baseName = path.basename(filePath, path.extname(filePath)).replace(/[^\w .()-]+/g, '_').replace(/^[. ]+/, '').slice(0, 60);
+  let filename = (baseName || 'icon') + ext;
+  let destPath = safeAssetPath('icons', [filename]);
+  if(!destPath) return { ok:false, error:'Could not save that image.' };
+  let taken = true;
+  try{ await fs.access(destPath); }catch(err){ taken = false; }
+  if(taken){
+    filename = generateAssetFilename(ext);
+    destPath = safeAssetPath('icons', [filename]);
+    if(!destPath) return { ok:false, error:'Could not save that image.' };
+  }
+  try{
+    let wrote = false;
+    if(ext === '.png' || ext === '.jpg' || ext === '.jpeg'){
+      try{
+        const img = nativeImage.createFromPath(filePath);
+        const size = img.getSize();
+        if(!img.isEmpty() && (size.width > ICON_MAX_DIMENSION || size.height > ICON_MAX_DIMENSION)){
+          const scale = ICON_MAX_DIMENSION / Math.max(size.width, size.height);
+          const resized = img.resize({ width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)), quality: 'best' });
+          await fs.writeFile(destPath, ext === '.png' ? resized.toPNG() : resized.toJPEG(90));
+          wrote = true;
+        }
+      }catch(err){ /* couldn't resize — plain copy below */ }
+    }
+    if(!wrote) await fs.copyFile(filePath, destPath);
+    return { ok:true, cancelled:false, url: assetUrl('icons', [filename]), inLibrary:false };
+  }catch(err){
+    return { ok:false, error:'Could not save that image.' };
+  }
+}
+
+// ---------- IPC: app icons for Application tiles ----------
+// Reads the app's own icon file (the .icns named in its Info.plist) — never the OS file-icon call
+// that was removed for stability. If an app keeps its icon in a modern asset catalog instead, a
+// Quick Look thumbnail is taken in a separate short-lived process, so nothing it does can take
+// ProjQik down with it. Every failure is silent: the tile just keeps its default icon.
+const APP_ICON_SIZE = 256;
+const APP_ICON_MAX_BYTES = 12 * 1024 * 1024;
+const appIconInFlight = new Map();
+
+function appIconBaseName(appPath){
+  return 'app-' + crypto.createHash('sha1').update(appPath).digest('hex').slice(0, 16);
+}
+
+function execFileText(file, args, timeoutMs){
+  return new Promise(function(resolve){
+    try{
+      execFile(file, args, { timeout: timeoutMs, maxBuffer: 2 * 1024 * 1024 }, function(err, stdout){
+        resolve(err ? null : String(stdout));
+      });
+    }catch(err){
+      resolve(null);
+    }
+  });
+}
+
+// Returns the icon-file name an app's Info.plist declares (e.g. "Word" or "AppIcon.icns"), or null.
+async function readAppIconName(appPath){
+  const plistPath = path.join(appPath, 'Contents', 'Info.plist');
+  let raw = null;
+  try{
+    const st = await fs.stat(plistPath);
+    if(!st.isFile() || st.size > 2 * 1024 * 1024) return null;
+  }catch(err){ return null; }
+  // plutil understands both XML and binary plists and ships with every Mac.
+  const json = await execFileText('/usr/bin/plutil', ['-convert', 'json', '-o', '-', plistPath], 4000);
+  if(json){
+    try{
+      const parsed = JSON.parse(json);
+      if(typeof parsed.CFBundleIconFile === 'string' && parsed.CFBundleIconFile.trim()) return parsed.CFBundleIconFile.trim();
+      if(Array.isArray(parsed.CFBundleIconFiles) && typeof parsed.CFBundleIconFiles[0] === 'string') return parsed.CFBundleIconFiles[0].trim();
+    }catch(err){ /* try the plain-text route below */ }
+  }
+  const single = await execFileText('/usr/bin/plutil', ['-extract', 'CFBundleIconFile', 'raw', '-o', '-', plistPath], 4000);
+  if(single && single.trim() && single.trim().length < 256) return single.trim();
+  try{ raw = await fs.readFile(plistPath, 'utf8'); }catch(err){ return null; }
+  const m = /<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/.exec(raw);
+  return m ? m[1].trim() : null;
+}
+
+async function findAppIconFile(appPath){
+  const resources = path.join(appPath, 'Contents', 'Resources');
+  const candidates = [];
+  const declared = await readAppIconName(appPath);
+  if(declared) candidates.push(/\.(icns|png)$/i.test(declared) ? declared : declared + '.icns');
+  candidates.push('AppIcon.icns');
+  const appName = path.basename(appPath, '.app');
+  candidates.push(appName + '.icns');
+  for(const name of candidates){
+    if(!name || /[\/\\\0]/.test(name) || name.indexOf('..') !== -1) continue;
+    const full = path.join(resources, name);
+    const rel = path.relative(resources, full);
+    if(!rel || rel.startsWith('..') || path.isAbsolute(rel)) continue;
+    try{
+      const st = await fs.stat(full);
+      if(st.isFile() && st.size > 0 && st.size <= APP_ICON_MAX_BYTES) return full;
+    }catch(err){ /* try the next name */ }
+  }
+  return null;
+}
+
+// An .icns file is a small container of icon sizes. Modern ones (every current app) store each size as a
+// PNG; this returns the widest PNG inside, or null when the file has none (older formats).
+function extractIcnsPng(buf){
+  if(!buf || buf.length < 16 || buf.toString('ascii', 0, 4) !== 'icns') return null;
+  const total = Math.min(buf.readUInt32BE(4), buf.length);
+  let off = 8;
+  let best = null;
+  let bestWidth = 0;
+  while(off + 8 <= total){
+    const len = buf.readUInt32BE(off + 4);
+    if(len < 8 || off + len > total) break;
+    const payload = buf.subarray(off + 8, off + len);
+    if(payload.length > 24 && payload[0] === 0x89 && payload[1] === 0x50 && payload[2] === 0x4E && payload[3] === 0x47){
+      const width = payload.readUInt32BE(16); // PNG IHDR width
+      if(width > bestWidth && width <= 4096){ best = payload; bestWidth = width; }
+    }
+    off += len;
+  }
+  return best;
+}
+
+// Last resort for old-format .icns files: macOS's own image converter, in a separate short-lived process.
+async function sipsIconToPng(iconFile){
+  let dir = null;
+  try{
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'projqik-sips-'));
+    const out = path.join(dir, 'icon.png');
+    await execFileText('/usr/bin/sips', ['-s', 'format', 'png', '-Z', String(APP_ICON_SIZE), iconFile, '--out', out], 8000);
+    const buffer = await fs.readFile(out);
+    return sniffImageType(buffer) === 'png' ? buffer : null;
+  }catch(err){
+    return null;
+  }finally{
+    if(dir) fs.rm(dir, { recursive: true, force: true }).catch(function(){});
+  }
+}
+
+async function renderAppIconPng(iconFile){
+  try{
+    let img;
+    if(/\.icns$/i.test(iconFile)){
+      const embedded = extractIcnsPng(await fs.readFile(iconFile));
+      if(!embedded) return await sipsIconToPng(iconFile);
+      img = nativeImage.createFromBuffer(embedded);
+    }else{
+      img = nativeImage.createFromPath(iconFile);
+    }
+    if(img.isEmpty()) return /\.icns$/i.test(iconFile) ? await sipsIconToPng(iconFile) : null;
+    const size = img.getSize();
+    const scale = Math.min(1, APP_ICON_SIZE / Math.max(size.width, size.height));
+    const out = scale < 1
+      ? img.resize({ width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)), quality: 'best' })
+      : img;
+    return out.toPNG();
+  }catch(err){
+    return null;
+  }
+}
+
+async function quickLookAppIcon(appPath){
+  let dir = null;
+  try{
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'projqik-ql-'));
+    await execFileText('/usr/bin/qlmanage', ['-t', '-s', String(APP_ICON_SIZE), '-o', dir, appPath], 10000);
+    const files = await fs.readdir(dir);
+    const png = files.find(function(n){ return /\.png$/i.test(n); });
+    if(!png) return null;
+    const buffer = await fs.readFile(path.join(dir, png));
+    return sniffImageType(buffer) === 'png' ? buffer : null;
+  }catch(err){
+    return null;
+  }finally{
+    if(dir) fs.rm(dir, { recursive: true, force: true }).catch(function(){});
+  }
+}
+
+async function buildAppIcon(appPath, force){
+  const filename = appIconBaseName(appPath) + '.png';
+  const destPath = safeAssetPath('favicons', [filename]);
+  if(!destPath) return { ok:false };
+  if(!force){
+    try{
+      const st = await fs.stat(destPath);
+      if(st.isFile() && st.size > 0) return { ok:true, url: assetUrl('favicons', [filename]), cached:true };
+    }catch(err){ /* not cached yet */ }
+  }
+  let png = null;
+  const iconFile = await findAppIconFile(appPath);
+  if(iconFile) png = await renderAppIconPng(iconFile);
+  if(!png) png = await quickLookAppIcon(appPath);
+  if(!png) return { ok:false };
+  try{
+    await fs.mkdir(ASSET_DIRS.favicons, { recursive: true });
+    await fs.writeFile(destPath, png);
+    return { ok:true, url: assetUrl('favicons', [filename]) };
+  }catch(err){
+    return { ok:false };
+  }
+}
+
+ipcMain.handle('get-app-icon', async (event, appPath, force) => {
+  if(typeof appPath !== 'string' || !path.isAbsolute(appPath) || appPath.length > 1024 || !/\.app$/i.test(appPath.replace(/[\/\\]+$/, ''))) return { ok:false };
+  const clean = appPath.replace(/[\/\\]+$/, '');
+  try{
+    const st = await fs.stat(clean);
+    if(!st.isDirectory()) return { ok:false };
+  }catch(err){ return { ok:false }; }
+  const key = clean + (force ? '|force' : '');
+  if(!appIconInFlight.has(key)){
+    const job = buildAppIcon(clean, !!force).catch(function(){ return { ok:false }; }).finally(function(){ appIconInFlight.delete(key); });
+    appIconInFlight.set(key, job);
+  }
+  return appIconInFlight.get(key);
 });
 
 // ---------- IPC: website icon (favicon) and page title for link tiles ----------

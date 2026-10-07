@@ -3,7 +3,7 @@
 A native macOS project launcher by Freedom Forge AI — one-click access to the files, folders, apps and
 links for each of your projects, organized in up to 30 color-coded project tabs.
 
-Current version: **3.1.0** (see `CHANGELOG.md`).
+Current version: **3.2.0** (see `CHANGELOG.md`).
 
 ## Installing (for people using the app)
 
@@ -30,7 +30,9 @@ the new one. Use **Preferences → Backup → Export** any time to save a full b
 
 - Up to 30 project tabs, each with its own color; archive, merge and undo
 - Tiles for files, folders, apps and web links; drag from Finder, or drag a link from a web page
-- Per-tile notes (searchable)
+- Per-tile notes (searchable), one-click tile cloning, and a "Custom" filter for your own hand-picked group
+- Real icons for Application tiles (read from the app itself); "Choose from Finder…" for custom tile icons
+- Four color schemes (Graphite, Slate, Paper, Steel) and a launch splash screen you can turn off
 - Automatic website icons and titles for link tiles (only ever contacts the linked site; can be turned
   off in Preferences)
 - Shared icon and background libraries with subfolders, "Open folder" and "Import folder…"

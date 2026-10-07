@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ProjQik</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: pqasset:; connect-src 'self' pqasset:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: pqasset:; connect-src 'self' pqasset:;">
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,9 +48,83 @@
     --text:#27251E; --text-muted:#75705F;
     --accent-h:36; --accent-s:76%; --accent-l:47%;
   }
+  html[data-app-theme="steel"]{
+    /* "Steel" = cool brushed-metal grays with a silver-blue accent. */
+    --bg:#1F2328; --panel:#2A2F36; --panel-raised:#353B44; --border:#4B535E; --border-soft:#3C434C;
+    --text:#EEF1F4; --text-muted:#A5AEBA;
+    --accent-h:208; --accent-s:34%; --accent-l:68%;
+  }
+  html[data-app-theme="steel"] body{
+    background-color:var(--bg);
+    background-image:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.022) 0, rgba(255,255,255,.022) 1px, transparent 1px, transparent 3px),
+      linear-gradient(180deg, #2B3037 0%, #1D2126 100%);
+    background-attachment:fixed;
+  }
   html[data-app-theme="paper"] .tile__path,
   html[data-app-theme="paper"] .switch__count,
   html[data-app-theme="paper"] .preview-path{ color:var(--text-muted); }
+
+  /* app icons read straight from the application keep their own shape and transparency */
+  .tile__icon-wrap img.is-appicon, .search-result__icon img.is-appicon{ object-fit:contain; border-radius:0; background:none; }
+
+  /* Custom filter: toolbar above the grid + the tile chooser */
+  .custom-bar{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:-6px 0 16px; }
+  .custom-bar__text{ font-size:12.5px; color:var(--text-muted); }
+  .custom-pick-tools{ display:flex; align-items:center; gap:14px; margin:10px 0 8px; }
+  .custom-pick-count{ margin-left:auto; font-size:12px; color:var(--text-muted); }
+  .custom-pick-list{ max-height:min(46vh, 380px); overflow-y:auto; border:1px solid var(--border-soft); border-radius:8px; background:var(--panel-raised); }
+  .custom-pick-row{ display:flex; align-items:center; gap:10px; padding:8px 12px; cursor:pointer; border-bottom:1px solid var(--border-soft); }
+  .custom-pick-row:last-child{ border-bottom:none; }
+  .custom-pick-row:hover{ background:rgba(255,255,255,.04); }
+  .custom-pick-row input{ accent-color:var(--accent); width:16px; height:16px; flex-shrink:0; }
+  .custom-pick-row__icon{ width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--accent); }
+  .custom-pick-row__icon img{ width:100%; height:100%; object-fit:cover; border-radius:5px; }
+  .custom-pick-row__icon img.is-appicon{ object-fit:contain; border-radius:0; }
+  .custom-pick-row__icon img.is-favicon{ object-fit:contain; }
+  .custom-pick-row__icon svg{ width:100%; height:100%; }
+  .custom-pick-row__text{ min-width:0; flex:1; }
+  .custom-pick-row__label{ font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .custom-pick-row__type{ font-size:11px; color:var(--text-muted); }
+
+  /* ---------- launch splash ---------- */
+  @font-face{ font-family:'Orbitron'; font-weight:400; font-style:normal; font-display:block; src:url('fonts/orbitron-400.woff2') format('woff2'); }
+  @font-face{ font-family:'Orbitron'; font-weight:500; font-style:normal; font-display:block; src:url('fonts/orbitron-500.woff2') format('woff2'); }
+  #splash{
+    position:fixed; inset:0; z-index:10000; overflow:hidden; cursor:pointer;
+    background:radial-gradient(ellipse at 50% 46%, #11211F 0%, #0A1413 46%, #060B0B 100%);
+    opacity:1; transition:opacity .9s ease;
+  }
+  #splash.is-leaving{ opacity:0; pointer-events:none; }
+  #splash .splash-dots{
+    position:absolute; inset:0; opacity:.55;
+    background-image:radial-gradient(rgba(170,205,200,.16) 1px, transparent 1.5px);
+    background-size:44px 44px;
+  }
+  #splash .splash-ring{ position:absolute; border:1px solid rgba(160,200,195,.07); border-radius:50%; right:-26vmin; bottom:-30vmin; }
+  #splash .splash-ring:nth-of-type(1){ width:96vmin; height:96vmin; }
+  #splash .splash-ring:nth-of-type(2){ width:76vmin; height:76vmin; right:-16vmin; bottom:-20vmin; }
+  #splash .splash-ring:nth-of-type(3){ width:56vmin; height:56vmin; right:-6vmin; bottom:-10vmin; }
+  #splash .splash-credit{
+    position:absolute; top:34px; left:40px; display:flex; align-items:center; gap:16px;
+    opacity:0; animation:splashFade 1.4s ease .6s forwards;
+  }
+  #splash .splash-credit img{ width:62px; height:62px; display:block; filter:drop-shadow(0 0 14px rgba(80,150,230,.45)); }
+  #splash .splash-credit__by{ font-family:'Orbitron', var(--font-display); font-size:10px; letter-spacing:.26em; color:#C9A24A; }
+  #splash .splash-credit__name{ font-family:'Orbitron', var(--font-display); font-weight:500; font-size:17px; letter-spacing:.22em; color:#EAF1F5; margin-top:5px; white-space:nowrap; }
+  #splash .splash-stage{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:34px;
+    transform-origin:50% 46%; animation:splashZoom 5.2s cubic-bezier(.42,0,.35,1) forwards;
+  }
+  #splash .splash-mark{ width:min(30vmin, 300px); height:auto; display:block; opacity:0; filter:drop-shadow(0 0 44px rgba(232,163,61,.30)); animation:splashFade 1.5s ease .25s forwards; }
+  #splash .splash-word{ font-family:'Orbitron', var(--font-display); font-weight:500; font-size:clamp(22px, 4.6vmin, 46px); letter-spacing:.36em; padding-left:.36em; color:#EDEAE0; opacity:0; animation:splashFade 1.5s ease .9s forwards; }
+  #splash .splash-tag{ font-family:'Orbitron', var(--font-display); font-size:clamp(9px, 1.5vmin, 13px); letter-spacing:.3em; padding-left:.3em; color:#7FA9A4; margin-top:-18px; opacity:0; animation:splashFade 1.5s ease 1.5s forwards; }
+  @keyframes splashFade{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes splashZoom{ from{ transform:scale(1); } to{ transform:scale(1.75); } }
+  @media (prefers-reduced-motion: reduce){
+    #splash .splash-stage{ animation:none !important; transform:none; }
+    #splash .splash-mark, #splash .splash-word, #splash .splash-tag, #splash .splash-credit{ animation:none !important; opacity:1; }
+  }
 
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
@@ -447,7 +521,7 @@
     border:2px solid var(--panel); box-sizing:content-box;
   }
   .tile__label{
-    font-family:var(--font-body); font-weight:600; font-size:14px; padding-right:84px;
+    font-family:var(--font-body); font-weight:600; font-size:14px; padding-right:112px;
     overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
   }
   .tile__path{
@@ -675,6 +749,22 @@
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true">
+  <div class="splash-dots"></div>
+  <div class="splash-ring"></div><div class="splash-ring"></div><div class="splash-ring"></div>
+  <div class="splash-credit">
+    <img src="splash/ffai-emblem.png" alt="">
+    <div>
+      <div class="splash-credit__by">DEVELOPED BY:</div>
+      <div class="splash-credit__name">FREEDOM FORGE AI</div>
+    </div>
+  </div>
+  <div class="splash-stage">
+    <img class="splash-mark" src="splash/projqik-mark.png" alt="">
+    <div class="splash-word">PROJQIK</div>
+    <div class="splash-tag">YOUR PROJECTS, ONE CLICK AWAY</div>
+  </div>
+</div>
 
 <!-- loading state: shown until JS mounts real data, and as a safety net if JS never runs -->
 <div id="skeleton" aria-hidden="true">
@@ -809,6 +899,7 @@
           <div class="icon-picker-buttons">
             <button type="button" class="secondary-btn" id="iconUploadBtn">Upload icon</button>
             <button type="button" class="secondary-btn" id="iconBrowseBtn">Browse library</button>
+            <button type="button" class="secondary-btn" id="iconFinderBtn">Choose from Finder…</button>
             <button type="button" class="secondary-btn" id="iconResetBtn" style="display:none;">Reset to default</button>
           </div>
         </div>
@@ -921,6 +1012,23 @@
   </div>
 </div>
 
+<div class="overlay" id="customOverlay">
+  <div class="modal" style="max-width:460px;">
+    <h2>Choose tiles for Custom</h2>
+    <p class="hint">Tick the tiles that belong in your Custom group for this project. Nothing is moved or changed &mdash; it is just a filtered view, handy for presenting.</p>
+    <div class="custom-pick-tools">
+      <button type="button" class="hint-link-btn" id="customSelectAllBtn">Select all</button>
+      <button type="button" class="hint-link-btn" id="customSelectNoneBtn">Clear</button>
+      <span class="custom-pick-count" id="customPickCount"></span>
+    </div>
+    <div class="custom-pick-list" id="customPickList"></div>
+    <div class="modal-actions">
+      <button type="button" class="secondary-btn" id="customCancelBtn">Cancel</button>
+      <button type="button" class="primary-btn" id="customSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="backgroundLibraryOverlay">
   <div class="modal" style="max-width:420px;">
     <h2>Background library</h2>
@@ -988,7 +1096,7 @@
 
     <div class="settings-section">
       <label class="settings-label">Default view per project</label>
-      <p class="settings-hint">ProjQik remembers whichever filter (All, Files, Folders, Apps, or Links) you last used in each project, and shows that again the next time you switch to it.</p>
+      <p class="settings-hint">ProjQik remembers whichever filter (All, Files, Folders, Apps, Links, or Custom) you last used in each project, and shows that again the next time you switch to it.</p>
     </div>
 
     <div class="settings-section">
@@ -999,13 +1107,22 @@
     </div>
 
     <div class="settings-section">
+      <label class="settings-label">Splash screen</label>
+      <label class="settings-toggle">
+        <input type="checkbox" id="settingsSplashToggle">
+        <span>Show the splash screen when ProjQik opens</span>
+      </label>
+      <p class="settings-hint">A short animated welcome. Click anywhere or press any key to skip it.</p>
+    </div>
+
+    <div class="settings-section">
       <label class="settings-label">Website icons</label>
       <label class="settings-toggle">
         <input type="checkbox" id="settingsFaviconToggle">
         <span>Fetch icons and page titles for link tiles automatically</span>
       </label>
       <p class="settings-hint">When you add a link, ProjQik asks that website — and only that website — for its icon and title. Nothing goes through a third-party service, and no cookies or logins are sent. Turn this off if you would rather links keep the default icon.</p>
-      <button type="button" class="secondary-btn" id="fetchAllIconsBtn">Fetch icons for my existing links</button>
+      <button type="button" class="secondary-btn" id="fetchAllIconsBtn">Fetch icons for my existing links and apps</button>
     </div>
 
     <div class="settings-section">
@@ -1164,6 +1281,7 @@
   if(typeof state.projectOrderCustomized !== 'boolean') state.projectOrderCustomized = true; // see migrateThemeIndexes note
   if(!Array.isArray(state.chromeProfiles)) state.chromeProfiles = [];
   if(typeof state.fetchFavicons !== 'boolean') state.fetchFavicons = true;
+  if(typeof state.showSplash !== 'boolean') state.showSplash = true;
   var currentFilter = 'all';
   var editingTileId = null; // when set, modal is in edit mode
   var currentType = 'file';
@@ -1256,6 +1374,7 @@
   function iconArchive(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/></svg>'; }
   function iconNote(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v11l-5 5H4Z"/><path d="M15 20v-5h5M8 9h8M8 13h4"/></svg>'; }
   function iconMerge(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v12a3 3 0 0 0 3 3h9M18 15l3 3-3 3M6 9h4"/></svg>'; }
+  function iconClone(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-2h11M14.5 11.5v6M11.5 14.5h6"/></svg>'; }
   function iconCopy(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'; }
   function iconPlus(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>'; }
   function iconGrip(){ return '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="5" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="8" cy="19" r="1.5"/><circle cx="16" cy="5" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="16" cy="19" r="1.5"/></svg>'; }
@@ -1443,6 +1562,8 @@
           duplicate.noteUpdatedAt = new Date().toISOString();
         }
         if(!duplicate.customIcon && tile.customIcon) duplicate.customIcon = tile.customIcon;
+        if(!duplicate.appIconUrl && tile.appIconUrl) duplicate.appIconUrl = tile.appIconUrl;
+        if(tile.inCustom) duplicate.inCustom = true;
         if(!duplicate.faviconUrl && tile.faviconUrl) duplicate.faviconUrl = tile.faviconUrl;
       } else {
         dest.tiles.push(tile);
@@ -1512,6 +1633,7 @@
     var idx = fromProject.tiles.findIndex(function(t){ return t.id === tileId; });
     if(idx === -1) return;
     var moved = fromProject.tiles.splice(idx, 1)[0];
+    delete moved.inCustom; // Custom groups belong to one project; the tile starts fresh in its new home
     toProject.tiles.push(moved);
     saveData();
     renderRail();
@@ -1664,6 +1786,12 @@
     };
   }
 
+  function tileMatchesFilter(tile, key){
+    if(key === 'all') return true;
+    if(key === 'custom') return !!tile.inCustom;
+    return tile.type === key;
+  }
+
   function renderFilters(project){
     var row = document.getElementById('filterRow');
     row.innerHTML = '';
@@ -1672,10 +1800,11 @@
       { key:'file', label:'Files' },
       { key:'folder', label:'Folders' },
       { key:'app', label:'Apps' },
-      { key:'url', label:'Links' }
+      { key:'url', label:'Links' },
+      { key:'custom', label:'Custom' }
     ];
     options.forEach(function(opt){
-      var count = opt.key === 'all' ? project.tiles.length : project.tiles.filter(function(t){ return t.type === opt.key; }).length;
+      var count = project.tiles.filter(function(t){ return tileMatchesFilter(t, opt.key); }).length;
       var pill = el('button', {
         type:'button',
         class:'filter-pill' + (currentFilter === opt.key ? ' is-active' : ''),
@@ -1694,7 +1823,7 @@
     var area = document.getElementById('gridArea');
     area.innerHTML = '';
 
-    var tiles = currentFilter === 'all' ? project.tiles : project.tiles.filter(function(t){ return t.type === currentFilter; });
+    var tiles = project.tiles.filter(function(t){ return tileMatchesFilter(t, currentFilter); });
 
     if(project.tiles.length === 0){
       area.appendChild(el('div', { class:'empty-state' }, [
@@ -1706,11 +1835,20 @@
       return;
     }
 
+    if(currentFilter === 'custom'){
+      area.appendChild(el('div', { class:'custom-bar' }, [
+        el('span', { class:'custom-bar__text' }, [document.createTextNode('Your own group for "' + project.name + '" \u2014 handy for presenting.')]),
+        el('button', { type:'button', class:'secondary-btn', onclick: openCustomPicker }, [document.createTextNode('Choose tiles\u2026')])
+      ]));
+    }
+
     var grid = el('div', { class:'tile-grid' });
 
     if(tiles.length === 0){
       grid.appendChild(el('div', { class:'empty-state' }, [
-        el('p', {}, [document.createTextNode('No ' + currentFilter + ' tiles in this project yet.')])
+        el('p', {}, [document.createTextNode(currentFilter === 'custom'
+          ? 'Nothing in Custom yet. Use \u201cChoose tiles\u2026\u201d to pick which tiles belong in this group.'
+          : 'No ' + currentFilter + ' tiles in this project yet.')])
       ]));
     } else {
       tiles.forEach(function(tile){
@@ -1730,6 +1868,7 @@
     var meta = TYPE_META[tile.type];
     if(tile.customIcon) return '<img src="' + tile.customIcon + '" alt="">';
     if(tile.type === 'url' && tile.faviconUrl) return '<img class="is-favicon" src="' + tile.faviconUrl + '" alt="">';
+    if(tile.type === 'app' && tile.appIconUrl) return '<img class="is-appicon" src="' + tile.appIconUrl + '" alt="">';
     if(tile.autoThumbnail) return '<img src="' + tile.autoThumbnail + '" alt="">';
     return meta.icon();
   }
@@ -1797,6 +1936,10 @@
       el('div', { class:'tile__path' }, [document.createTextNode(tile.target)]),
       el('div', { class:'tile__actions' }, [
         el('button', {
+          type:'button', class:'tile__action-btn', title:'Clone this tile', 'aria-label':'Clone ' + tile.label,
+          onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); cloneTile(tile); }
+        }, [(function(){ var d = el('span', { html: iconClone() }); return d.firstChild; })()]),
+        el('button', {
           type:'button', class:'tile__action-btn', title:'Copy path', 'aria-label':'Copy path for ' + tile.label,
           onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); copyText(tile.target); }
         }, [(function(){ var d = el('span', { html: iconCopy() }); return d.firstChild; })()]),
@@ -1813,6 +1956,37 @@
       ])
     ]);
     return card;
+  }
+
+  // ---------- cloning tiles ----------
+  // A clone is the whole tile: path, icon, note, Chrome profile, Custom membership — everything.
+  // It lands right after the original, with a free "(copy)" name so the two are easy to tell apart.
+  function cloneLabelFor(project, label){
+    var base = String(label).replace(/ \(copy(?: \d+)?\)$/, '');
+    var taken = {};
+    project.tiles.forEach(function(t){ taken[t.label] = true; });
+    var candidate = base + ' (copy)';
+    var n = 2;
+    while(taken[candidate]){
+      candidate = base + ' (copy ' + n + ')';
+      n++;
+    }
+    return candidate;
+  }
+
+  function cloneTile(tile){
+    var project = state.projects.find(function(p){ return p.tiles.indexOf(tile) !== -1; });
+    if(!project) return;
+    var idx = project.tiles.indexOf(tile);
+    var copy = JSON.parse(JSON.stringify(tile));
+    copy.id = uid();
+    copy.label = cloneLabelFor(project, tile.label);
+    delete copy.labelAuto;
+    project.tiles.splice(idx + 1, 0, copy);
+    saveData();
+    renderRail();
+    renderMain();
+    showToast('Cloned "' + tile.label + '"');
   }
 
   // ---------- opening tiles ----------
@@ -2297,6 +2471,19 @@
     iconLibrary.refresh();
   });
 
+  document.getElementById('iconFinderBtn').addEventListener('click', function(){
+    window.projqik.chooseIconFromFinder().then(function(r){
+      if(!r || !r.ok){ showToast((r && r.error) || 'Could not use that image.', true); return; }
+      if(r.cancelled) return;
+      pendingCustomIcon = r.url;
+      renderIconPickerPreview();
+      if(iconLibraryPanel.style.display !== 'none') iconLibrary.refresh();
+    }).catch(function(err){
+      console.error('ProjQik: choosing an icon from Finder failed', err);
+      showToast('Could not use that image.', true);
+    });
+  });
+
   iconResetBtn.addEventListener('click', function(){
     pendingCustomIcon = null;
     renderIconPickerPreview();
@@ -2593,6 +2780,7 @@
     if(mergeOverlay.classList.contains('show')){ mergeOverlay.classList.remove('show'); mergeSourceProject = null; }
     if(backgroundLibraryOverlay.classList.contains('show')) backgroundLibraryOverlay.classList.remove('show');
     if(noteOverlay.classList.contains('show')) closeNoteEditor();
+    if(customOverlay.classList.contains('show')) closeCustomPicker();
   });
 
   deleteBtn.addEventListener('click', function(){
@@ -2668,6 +2856,7 @@
       applyIconFields(tileObj, function(){
         var targetChanged = !previous || previous.target !== tileObj.target || previous.type !== tileObj.type;
         if(tileObj.type !== 'url' || targetChanged) delete tileObj.faviconUrl;
+        if(tileObj.type !== 'app' || targetChanged){ delete tileObj.appIconUrl; delete tileObj.appIconTried; }
         delete tileObj.labelAuto; // the person has now seen and confirmed this label
         saveData();
         closeModal();
@@ -2675,6 +2864,7 @@
         renderMain();
         showToast(isNew ? 'Tile added' : 'Tile updated');
         if(tileObj.type === 'url' && !tileObj.faviconUrl) fetchSiteMetaForTile(tileObj.id, {});
+        if(tileObj.type === 'app' && !tileObj.appIconUrl && !tileObj.customIcon) fetchAppIconForTile(tileObj.id, {});
       });
     }
 
@@ -2692,6 +2882,78 @@
       project.tiles.push(newTile);
       finishSave(newTile, true, null);
     }
+  });
+
+  // ---------- Custom group chooser ----------
+  var customOverlay = document.getElementById('customOverlay');
+  var customPickList = document.getElementById('customPickList');
+  var customPickCount = document.getElementById('customPickCount');
+  var customPending = null; // tile id -> true/false while the chooser is open
+
+  function updateCustomPickCount(){
+    var project = getActiveProject();
+    var n = project.tiles.filter(function(t){ return customPending && customPending[t.id]; }).length;
+    customPickCount.textContent = n + ' of ' + project.tiles.length + ' selected';
+  }
+
+  function renderCustomPickList(){
+    var project = getActiveProject();
+    customPickList.innerHTML = '';
+    project.tiles.forEach(function(tile){
+      var box = el('input', { type:'checkbox' });
+      box.checked = !!customPending[tile.id];
+      box.addEventListener('change', function(){
+        customPending[tile.id] = box.checked;
+        updateCustomPickCount();
+      });
+      var row = el('label', { class:'custom-pick-row' }, [
+        box,
+        el('span', { class:'custom-pick-row__icon', html: tileIconMarkup(tile) }),
+        el('span', { class:'custom-pick-row__text' }, [
+          el('div', { class:'custom-pick-row__label' }, [document.createTextNode(tile.label)]),
+          el('div', { class:'custom-pick-row__type' }, [document.createTextNode(TYPE_META[tile.type] ? TYPE_META[tile.type].label : '')])
+        ])
+      ]);
+      customPickList.appendChild(row);
+    });
+    updateCustomPickCount();
+  }
+
+  function openCustomPicker(){
+    var project = getActiveProject();
+    if(!project || project.tiles.length === 0) return;
+    customPending = {};
+    project.tiles.forEach(function(t){ customPending[t.id] = !!t.inCustom; });
+    renderCustomPickList();
+    customOverlay.classList.add('show');
+  }
+
+  function closeCustomPicker(){
+    customOverlay.classList.remove('show');
+    customPending = null;
+  }
+
+  document.getElementById('customSelectAllBtn').addEventListener('click', function(){
+    getActiveProject().tiles.forEach(function(t){ customPending[t.id] = true; });
+    renderCustomPickList();
+  });
+  document.getElementById('customSelectNoneBtn').addEventListener('click', function(){
+    getActiveProject().tiles.forEach(function(t){ customPending[t.id] = false; });
+    renderCustomPickList();
+  });
+  document.getElementById('customCancelBtn').addEventListener('click', closeCustomPicker);
+  customOverlay.addEventListener('click', function(ev){ if(ev.target === customOverlay) closeCustomPicker(); });
+  document.getElementById('customSaveBtn').addEventListener('click', function(){
+    if(!customPending) return;
+    var project = getActiveProject();
+    var count = 0;
+    project.tiles.forEach(function(t){
+      if(customPending[t.id]){ t.inCustom = true; count++; } else { delete t.inCustom; }
+    });
+    saveData();
+    closeCustomPicker();
+    renderMain();
+    showToast(count === 0 ? 'Custom group cleared' : 'Custom group saved (' + count + ' tile' + (count === 1 ? '' : 's') + ')');
   });
 
   // ---------- tile notes ----------
@@ -2790,6 +3052,7 @@
         if(typeof state.projectOrderCustomized !== 'boolean') state.projectOrderCustomized = true;
         if(!Array.isArray(state.chromeProfiles)) state.chromeProfiles = [];
         if(typeof state.fetchFavicons !== 'boolean') state.fetchFavicons = true;
+        if(typeof state.showSplash !== 'boolean') state.showSplash = true;
         if(!state.projects.some(function(p){ return p.id === state.activeProjectId; })){
           state.activeProjectId = state.projects[0].id;
         }
@@ -2814,7 +3077,8 @@
   var APP_THEMES = [
     { id:'graphite', label:'Graphite (bright blue)', swatch:'#2E8EFF', accentL:64 },
     { id:'slate', label:'Slate', swatch:'#141922', accentL:57 },
-    { id:'paper', label:'Paper', swatch:'#F3F0E8', accentL:47 }
+    { id:'paper', label:'Paper', swatch:'#F3F0E8', accentL:47 },
+    { id:'steel', label:'Steel', swatch:'#8E98A5', accentL:68 }
   ];
 
   function getAppTheme(themeId){
@@ -3401,6 +3665,64 @@
     });
   }
 
+  // Reads an Application tile's own icon straight from the app (nothing leaves the computer).
+  // options: { silent (skip saving/re-rendering — for bulk runs), force (re-read even if cached) }
+  // Resolves true when the tile ends up with an app icon.
+  function fetchAppIconForTile(tileId, options){
+    options = options || {};
+    var found = findTileById(tileId);
+    if(!found || found.tile.type !== 'app' || found.tile.customIcon) return Promise.resolve(false);
+    var target = found.tile.target;
+    return window.projqik.getAppIcon(target, !!options.force).then(function(r){
+      var again = findTileById(tileId);
+      if(!again || again.tile.target !== target) return false; // deleted or re-pointed while we waited
+      if(r && r.ok && r.url){
+        delete again.tile.appIconTried;
+        if(again.tile.appIconUrl !== r.url){
+          again.tile.appIconUrl = r.url;
+          if(!options.silent){ saveData(); renderMain(); }
+        }
+        return true;
+      }
+      again.tile.appIconTried = true; // remember the miss so launch doesn't retry it every time
+      if(!options.silent) saveData();
+      return false;
+    }).catch(function(err){
+      console.error('ProjQik: app icon lookup failed', err);
+      return false;
+    });
+  }
+
+  function appsNeedingIcons(skipTried){
+    var ids = [];
+    state.projects.forEach(function(p){
+      p.tiles.forEach(function(t){
+        if(t.type === 'app' && !t.appIconUrl && !t.customIcon && !(skipTried && t.appIconTried)) ids.push(t.id);
+      });
+    });
+    return ids;
+  }
+
+  // Quietly gives existing app tiles their real icons shortly after launch.
+  function fillMissingAppIcons(){
+    var queue = appsNeedingIcons(true);
+    if(queue.length === 0) return;
+    var next = 0;
+    var changed = false;
+    function worker(){
+      if(next >= queue.length) return Promise.resolve();
+      var id = queue[next++];
+      return fetchAppIconForTile(id, { silent: true }).then(function(ok){
+        if(ok) changed = true;
+        return worker();
+      });
+    }
+    Promise.all([worker(), worker()]).then(function(){
+      saveData();
+      if(changed) renderMain();
+    });
+  }
+
   function linksNeedingIcons(){
     var ids = [];
     state.projects.forEach(function(p){
@@ -3413,17 +3735,20 @@
 
   var settingsFaviconToggle = document.getElementById('settingsFaviconToggle');
   var fetchAllIconsBtn = document.getElementById('fetchAllIconsBtn');
+  var settingsSplashToggle = document.getElementById('settingsSplashToggle');
 
   function refreshFaviconSettings(){
     settingsFaviconToggle.checked = !!state.fetchFavicons;
-    var n = linksNeedingIcons().length;
-    fetchAllIconsBtn.textContent = n > 0 ? 'Fetch icons for my existing links (' + n + ')' : 'Fetch icons for my existing links';
+    settingsSplashToggle.checked = state.showSplash !== false;
+    var n = linksNeedingIcons().length + appsNeedingIcons(false).length;
+    fetchAllIconsBtn.textContent = n > 0 ? 'Fetch icons for my existing links and apps (' + n + ')' : 'Fetch icons for my existing links and apps';
   }
 
   function fetchIconsForExistingLinks(){
-    var queue = linksNeedingIcons();
+    var queue = linksNeedingIcons().map(function(id){ return { id: id, app: false }; })
+      .concat(appsNeedingIcons(false).map(function(id){ return { id: id, app: true }; }));
     if(queue.length === 0){
-      showToast('Every link that can have an icon already does.');
+      showToast('Every link and app that can have an icon already does.');
       return;
     }
     var next = 0;
@@ -3432,8 +3757,11 @@
     fetchAllIconsBtn.disabled = true;
     function worker(){
       if(next >= queue.length) return Promise.resolve();
-      var id = queue[next++];
-      return fetchSiteMetaForTile(id, { force: true, silent: true }).then(function(ok){
+      var job = queue[next++];
+      var lookup = job.app
+        ? fetchAppIconForTile(job.id, { force: true, silent: true })
+        : fetchSiteMetaForTile(job.id, { force: true, silent: true });
+      return lookup.then(function(ok){
         finished++;
         if(ok) found++;
         if(finished % 4 === 0 && finished < queue.length) showToast('Fetching icons\u2026 ' + finished + ' of ' + queue.length);
@@ -3445,7 +3773,7 @@
       saveData();
       renderMain();
       refreshFaviconSettings();
-      showToast('Found icons for ' + found + ' of ' + queue.length + ' link' + (queue.length === 1 ? '' : 's'));
+      showToast('Found icons for ' + found + ' of ' + queue.length + ' tile' + (queue.length === 1 ? '' : 's'));
     });
   }
 
@@ -3454,9 +3782,41 @@
     saveData();
   });
   fetchAllIconsBtn.addEventListener('click', fetchIconsForExistingLinks);
+  settingsSplashToggle.addEventListener('change', function(){
+    state.showSplash = settingsSplashToggle.checked;
+    saveData();
+  });
+
+  // ---------- launch splash ----------
+  // The overlay is already on screen (and animating) when the page loads. This only decides how
+  // long it stays: it zooms slowly toward the mark, then fades into the app. A click or any key skips it.
+  function runSplash(){
+    var node = document.getElementById('splash');
+    if(!node) return;
+    if(state.showSplash === false){ node.parentNode.removeChild(node); return; }
+    var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var leaving = false;
+    function remove(){ if(node.parentNode) node.parentNode.removeChild(node); }
+    function leave(fast){
+      if(leaving) return;
+      leaving = true;
+      document.removeEventListener('keydown', onKey);
+      node.removeEventListener('click', onClick);
+      if(fast) node.style.transitionDuration = '.25s';
+      node.classList.add('is-leaving');
+      setTimeout(remove, fast ? 320 : 1000);
+    }
+    function onKey(){ leave(true); }
+    function onClick(){ leave(true); }
+    document.addEventListener('keydown', onKey);
+    node.addEventListener('click', onClick);
+    setTimeout(function(){ leave(false); }, reduced ? 1400 : 4300);
+    setTimeout(remove, 9000); // failsafe: the splash can never get stuck on screen
+  }
 
   // ---------- boot ----------
   function boot(){
+    runSplash();
     applyAppTheme(state.appTheme);
     applyTileSize(state.tileSize);
     var activeProject = getActiveProject();
@@ -3468,6 +3828,7 @@
     renderMain();
     document.getElementById('skeleton').style.display = 'none';
     document.getElementById('app').classList.add('ready');
+    setTimeout(fillMissingAppIcons, 800);
   }
 
   if(document.readyState === 'loading'){
