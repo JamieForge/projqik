@@ -2,13 +2,10 @@ name: Build macOS App
 
 on:
   workflow_dispatch: {}
-  push:
-    branches: [main]
-    tags: ['v*']
 
 jobs:
-  build-mac:
-    runs-on: macos-15
+  build:
+    runs-on: macos-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -17,17 +14,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Verify package version matches tag (tag builds only)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          VER="${GITHUB_REF#refs/tags/v}"
-          PKG_VER=$(node -p "require('./package.json').version")
-          if [ "$PKG_VER" != "$VER" ]; then
-            echo "ERROR: package.json version ($PKG_VER) does not match tag (v$VER). Bump the version before releasing."
-            exit 1
-          fi
-          echo "Version check passed: package.json = $PKG_VER, tag = v$VER"
 
       - name: Install dependencies
         run: npm install
@@ -67,105 +53,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: projqik-mac-builds
-          path: |
-            dist/*.dmg
+          path: dist/*.zip
           retention-days: 14
-
-  build-linux:
-    # PLACEHOLDER — Linux app support is still in progress (post-launch).
-    # continue-on-error keeps the Mac pipeline green until it's ready.
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build Linux app
-        run: npx electron-builder --linux --publish=never
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: projqik-linux-builds
-          path: |
-            dist/*.AppImage
-            dist/*.deb
-          retention-days: 14
-
-  build-windows:
-    # PLACEHOLDER — Windows app support is still in progress (post-launch).
-    # continue-on-error keeps the Mac pipeline green until it's ready.
-    runs-on: windows-latest
-    continue-on-error: true
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build Windows app
-        run: npx electron-builder --win --publish=never
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: projqik-windows-builds
-          path: dist/*.exe
-          retention-days: 14
-
-  release:
-    needs: [build-mac, build-linux, build-windows]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
-      - name: Rename artifacts to plain-language file names
-        run: |
-          cd dist
-          VER="${GITHUB_REF#refs/tags/v}"
-          echo "Files before rename:"
-          ls -la
-          # macOS Apple Silicon (arm64 dmg always carries the arch suffix)
-          mv "ProjQik-${VER}-arm64.dmg" "ProjQik-${VER}-Mac-AppleSilicon.dmg"
-          # macOS Intel — electron-builder omits the arch suffix for x64,
-          # but handle both namings so a builder change can't slip through
-          if [ -f "ProjQik-${VER}.dmg" ]; then
-            mv "ProjQik-${VER}.dmg" "ProjQik-${VER}-Mac-Intel.dmg"
-          elif [ -f "ProjQik-${VER}-x64.dmg" ]; then
-            mv "ProjQik-${VER}-x64.dmg" "ProjQik-${VER}-Mac-Intel.dmg"
-          else
-            echo "ERROR: Intel dmg not found!"; ls -la; exit 1
-          fi
-          # Windows
-          mv "ProjQik Setup ${VER}.exe" "ProjQik-${VER}-Windows.exe"
-          # Linux
-          mv "ProjQik-${VER}.AppImage" "ProjQik-${VER}-Linux.AppImage"
-          echo "Files after rename:"
-          ls -la
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*
-          generate_release_notes: true

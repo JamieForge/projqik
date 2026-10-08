@@ -68,24 +68,9 @@
   /* app icons read straight from the application keep their own shape and transparency */
   .tile__icon-wrap img.is-appicon, .search-result__icon img.is-appicon{ object-fit:contain; border-radius:0; background:none; }
 
-  /* Custom filter: toolbar above the grid + the tile chooser */
-  .custom-bar{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:-6px 0 16px; }
-  .custom-bar__text{ font-size:12.5px; color:var(--text-muted); }
-  .custom-pick-tools{ display:flex; align-items:center; gap:14px; margin:10px 0 8px; }
-  .custom-pick-count{ margin-left:auto; font-size:12px; color:var(--text-muted); }
-  .custom-pick-list{ max-height:min(46vh, 380px); overflow-y:auto; border:1px solid var(--border-soft); border-radius:8px; background:var(--panel-raised); }
-  .custom-pick-row{ display:flex; align-items:center; gap:10px; padding:8px 12px; cursor:pointer; border-bottom:1px solid var(--border-soft); }
-  .custom-pick-row:last-child{ border-bottom:none; }
-  .custom-pick-row:hover{ background:rgba(255,255,255,.04); }
-  .custom-pick-row input{ accent-color:var(--accent); width:16px; height:16px; flex-shrink:0; }
-  .custom-pick-row__icon{ width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--accent); }
-  .custom-pick-row__icon img{ width:100%; height:100%; object-fit:cover; border-radius:5px; }
-  .custom-pick-row__icon img.is-appicon{ object-fit:contain; border-radius:0; }
-  .custom-pick-row__icon img.is-favicon{ object-fit:contain; }
-  .custom-pick-row__icon svg{ width:100%; height:100%; }
-  .custom-pick-row__text{ min-width:0; flex:1; }
-  .custom-pick-row__label{ font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .custom-pick-row__type{ font-size:11px; color:var(--text-muted); }
+  /* Custom tab: a star on each tile, and the tab itself accepts dragged tiles */
+  .tile__action-btn.is-on{ opacity:1; color:var(--accent); border-color:var(--accent); }
+  .filter-pill.drag-over-custom{ border-color:var(--accent); color:var(--accent); background:var(--accent-soft); transform:scale(1.06); }
 
   /* ---------- launch splash ---------- */
   @font-face{ font-family:'Orbitron'; font-weight:400; font-style:normal; font-display:block; src:url('fonts/orbitron-400.woff2') format('woff2'); }
@@ -899,7 +884,6 @@
           <div class="icon-picker-buttons">
             <button type="button" class="secondary-btn" id="iconUploadBtn">Upload icon</button>
             <button type="button" class="secondary-btn" id="iconBrowseBtn">Browse library</button>
-            <button type="button" class="secondary-btn" id="iconFinderBtn">Choose from Finder…</button>
             <button type="button" class="secondary-btn" id="iconResetBtn" style="display:none;">Reset to default</button>
           </div>
         </div>
@@ -1008,23 +992,6 @@
       <button type="button" class="danger-btn" id="noteClearBtn">Clear note</button>
       <button type="button" class="secondary-btn" id="noteCancelBtn">Cancel</button>
       <button type="button" class="primary-btn" id="noteSaveBtn">Save</button>
-    </div>
-  </div>
-</div>
-
-<div class="overlay" id="customOverlay">
-  <div class="modal" style="max-width:460px;">
-    <h2>Choose tiles for Custom</h2>
-    <p class="hint">Tick the tiles that belong in your Custom group for this project. Nothing is moved or changed &mdash; it is just a filtered view, handy for presenting.</p>
-    <div class="custom-pick-tools">
-      <button type="button" class="hint-link-btn" id="customSelectAllBtn">Select all</button>
-      <button type="button" class="hint-link-btn" id="customSelectNoneBtn">Clear</button>
-      <span class="custom-pick-count" id="customPickCount"></span>
-    </div>
-    <div class="custom-pick-list" id="customPickList"></div>
-    <div class="modal-actions">
-      <button type="button" class="secondary-btn" id="customCancelBtn">Cancel</button>
-      <button type="button" class="primary-btn" id="customSaveBtn">Save</button>
     </div>
   </div>
 </div>
@@ -1374,8 +1341,8 @@
   function iconArchive(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/></svg>'; }
   function iconNote(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v11l-5 5H4Z"/><path d="M15 20v-5h5M8 9h8M8 13h4"/></svg>'; }
   function iconMerge(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v12a3 3 0 0 0 3 3h9M18 15l3 3-3 3M6 9h4"/></svg>'; }
+  function iconStar(on){ return '<svg viewBox="0 0 24 24" fill="' + (on ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg>'; }
   function iconClone(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-2h11M14.5 11.5v6M11.5 14.5h6"/></svg>'; }
-  function iconCopy(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'; }
   function iconPlus(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>'; }
   function iconGrip(){ return '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="5" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="8" cy="19" r="1.5"/><circle cx="16" cy="5" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="16" cy="19" r="1.5"/></svg>'; }
   function iconEmpty(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M2 12h20"/></svg>'; }
@@ -1815,6 +1782,24 @@
           renderMain();
         }
       }, [document.createTextNode(opt.label + ' (' + count + ')')]);
+      if(opt.key === 'custom'){
+        pill.addEventListener('dragover', function(ev){
+          if(!draggedTileId || isExternalDrag(ev)) return;
+          ev.preventDefault();
+          if(ev.dataTransfer) ev.dataTransfer.dropEffect = 'move'; // must match the grip's effectAllowed or the browser refuses the drop
+          pill.classList.add('drag-over-custom');
+        });
+        pill.addEventListener('dragleave', function(){ pill.classList.remove('drag-over-custom'); });
+        pill.addEventListener('drop', function(ev){
+          pill.classList.remove('drag-over-custom');
+          if(!draggedTileId || isExternalDrag(ev)) return;
+          ev.preventDefault();
+          var droppedId = draggedTileId, fromProjectId = draggedTileSourceProjectId;
+          draggedTileId = null; // the dragged tile's grip is about to be re-rendered, so its own dragend may never fire
+          draggedTileSourceProjectId = null;
+          if(fromProjectId === state.activeProjectId) dropTileOnCustom(droppedId);
+        });
+      }
       row.appendChild(pill);
     });
   }
@@ -1835,19 +1820,12 @@
       return;
     }
 
-    if(currentFilter === 'custom'){
-      area.appendChild(el('div', { class:'custom-bar' }, [
-        el('span', { class:'custom-bar__text' }, [document.createTextNode('Your own group for "' + project.name + '" \u2014 handy for presenting.')]),
-        el('button', { type:'button', class:'secondary-btn', onclick: openCustomPicker }, [document.createTextNode('Choose tiles\u2026')])
-      ]));
-    }
-
     var grid = el('div', { class:'tile-grid' });
 
     if(tiles.length === 0){
       grid.appendChild(el('div', { class:'empty-state' }, [
         el('p', {}, [document.createTextNode(currentFilter === 'custom'
-          ? 'Nothing in Custom yet. Use \u201cChoose tiles\u2026\u201d to pick which tiles belong in this group.'
+          ? 'Nothing in Custom yet. Click the \u2606 on any tile, or drag a tile (by its grip) onto the Custom tab, to put it here.'
           : 'No ' + currentFilter + ' tiles in this project yet.')])
       ]));
     } else {
@@ -1940,9 +1918,12 @@
           onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); cloneTile(tile); }
         }, [(function(){ var d = el('span', { html: iconClone() }); return d.firstChild; })()]),
         el('button', {
-          type:'button', class:'tile__action-btn', title:'Copy path', 'aria-label':'Copy path for ' + tile.label,
-          onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); copyText(tile.target); }
-        }, [(function(){ var d = el('span', { html: iconCopy() }); return d.firstChild; })()]),
+          type:'button', class:'tile__action-btn tile__star-btn' + (tile.inCustom ? ' is-on' : ''),
+          title: tile.inCustom ? 'In your Custom tab \u2014 click to remove' : 'Add to your Custom tab',
+          'aria-label': (tile.inCustom ? 'Remove ' : 'Add ') + tile.label + (tile.inCustom ? ' from' : ' to') + ' Custom',
+          'aria-pressed': tile.inCustom ? 'true' : 'false',
+          onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); toggleCustom(tile); }
+        }, [(function(){ var d = el('span', { html: iconStar(!!tile.inCustom) }); return d.firstChild; })()]),
         el('button', {
           type:'button', class:'tile__action-btn', title:'Edit', 'aria-label':'Edit ' + tile.label,
           onclick: function(ev){ ev.stopPropagation(); ev.preventDefault(); openEditModal(tile); }
@@ -1959,8 +1940,8 @@
   }
 
   // ---------- cloning tiles ----------
-  // A clone is the whole tile: path, icon, note, Chrome profile, Custom membership — everything.
-  // It lands right after the original, with a free "(copy)" name so the two are easy to tell apart.
+  // A clone is the whole tile: path, icon, note, Chrome profile - everything except Custom membership
+  // (star the copy if it belongs there too). It lands right after the original, with a free "(copy)" name.
   function cloneLabelFor(project, label){
     var base = String(label).replace(/ \(copy(?: \d+)?\)$/, '');
     var taken = {};
@@ -1974,6 +1955,30 @@
     return candidate;
   }
 
+  // ---------- Custom tab membership ----------
+  // One click on a tile's star (or dragging the tile onto the Custom tab) puts it in this project's
+  // Custom group; clicking the star again takes it out. Nothing is moved, copied or changed.
+  function setCustom(tile, on){
+    if(on) tile.inCustom = true; else delete tile.inCustom;
+    saveData();
+    renderMain();
+  }
+
+  function toggleCustom(tile){
+    var turnOn = !tile.inCustom;
+    setCustom(tile, turnOn);
+    showToast(turnOn ? 'Added "' + tile.label + '" to Custom' : 'Removed "' + tile.label + '" from Custom');
+  }
+
+  function dropTileOnCustom(tileId){
+    var project = getActiveProject();
+    var tile = project && project.tiles.find(function(t){ return t.id === tileId; });
+    if(!tile) return; // a tile from some other project: not this project's Custom group
+    if(tile.inCustom){ showToast('"' + tile.label + '" is already in Custom'); return; }
+    setCustom(tile, true);
+    showToast('Added "' + tile.label + '" to Custom');
+  }
+
   function cloneTile(tile){
     var project = state.projects.find(function(p){ return p.tiles.indexOf(tile) !== -1; });
     if(!project) return;
@@ -1982,6 +1987,7 @@
     copy.id = uid();
     copy.label = cloneLabelFor(project, tile.label);
     delete copy.labelAuto;
+    delete copy.inCustom;
     project.tiles.splice(idx + 1, 0, copy);
     saveData();
     renderRail();
@@ -2022,38 +2028,6 @@
       console.error('ProjQik: openPath failed', err);
       showToast('Couldn\u2019t open "' + tile.label + '".', true);
     });
-  }
-
-  function copyText(text){
-    function done(ok){
-      showToast(ok ? 'Path copied' : 'Could not copy — select manually: ' + text, !ok);
-    }
-    if(navigator.clipboard && window.isSecureContext){
-      navigator.clipboard.writeText(text).then(function(){ done(true); }).catch(function(err){
-        console.error('ProjQik: clipboard write failed', err);
-        done(fallbackCopy(text));
-      });
-    } else {
-      done(fallbackCopy(text));
-    }
-  }
-
-  function fallbackCopy(text){
-    try{
-      var ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      var ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    }catch(err){
-      console.error('ProjQik: fallback copy failed', err);
-      return false;
-    }
   }
 
   // ---------- background images ----------
@@ -2471,19 +2445,6 @@
     iconLibrary.refresh();
   });
 
-  document.getElementById('iconFinderBtn').addEventListener('click', function(){
-    window.projqik.chooseIconFromFinder().then(function(r){
-      if(!r || !r.ok){ showToast((r && r.error) || 'Could not use that image.', true); return; }
-      if(r.cancelled) return;
-      pendingCustomIcon = r.url;
-      renderIconPickerPreview();
-      if(iconLibraryPanel.style.display !== 'none') iconLibrary.refresh();
-    }).catch(function(err){
-      console.error('ProjQik: choosing an icon from Finder failed', err);
-      showToast('Could not use that image.', true);
-    });
-  });
-
   iconResetBtn.addEventListener('click', function(){
     pendingCustomIcon = null;
     renderIconPickerPreview();
@@ -2780,7 +2741,6 @@
     if(mergeOverlay.classList.contains('show')){ mergeOverlay.classList.remove('show'); mergeSourceProject = null; }
     if(backgroundLibraryOverlay.classList.contains('show')) backgroundLibraryOverlay.classList.remove('show');
     if(noteOverlay.classList.contains('show')) closeNoteEditor();
-    if(customOverlay.classList.contains('show')) closeCustomPicker();
   });
 
   deleteBtn.addEventListener('click', function(){
@@ -2882,78 +2842,6 @@
       project.tiles.push(newTile);
       finishSave(newTile, true, null);
     }
-  });
-
-  // ---------- Custom group chooser ----------
-  var customOverlay = document.getElementById('customOverlay');
-  var customPickList = document.getElementById('customPickList');
-  var customPickCount = document.getElementById('customPickCount');
-  var customPending = null; // tile id -> true/false while the chooser is open
-
-  function updateCustomPickCount(){
-    var project = getActiveProject();
-    var n = project.tiles.filter(function(t){ return customPending && customPending[t.id]; }).length;
-    customPickCount.textContent = n + ' of ' + project.tiles.length + ' selected';
-  }
-
-  function renderCustomPickList(){
-    var project = getActiveProject();
-    customPickList.innerHTML = '';
-    project.tiles.forEach(function(tile){
-      var box = el('input', { type:'checkbox' });
-      box.checked = !!customPending[tile.id];
-      box.addEventListener('change', function(){
-        customPending[tile.id] = box.checked;
-        updateCustomPickCount();
-      });
-      var row = el('label', { class:'custom-pick-row' }, [
-        box,
-        el('span', { class:'custom-pick-row__icon', html: tileIconMarkup(tile) }),
-        el('span', { class:'custom-pick-row__text' }, [
-          el('div', { class:'custom-pick-row__label' }, [document.createTextNode(tile.label)]),
-          el('div', { class:'custom-pick-row__type' }, [document.createTextNode(TYPE_META[tile.type] ? TYPE_META[tile.type].label : '')])
-        ])
-      ]);
-      customPickList.appendChild(row);
-    });
-    updateCustomPickCount();
-  }
-
-  function openCustomPicker(){
-    var project = getActiveProject();
-    if(!project || project.tiles.length === 0) return;
-    customPending = {};
-    project.tiles.forEach(function(t){ customPending[t.id] = !!t.inCustom; });
-    renderCustomPickList();
-    customOverlay.classList.add('show');
-  }
-
-  function closeCustomPicker(){
-    customOverlay.classList.remove('show');
-    customPending = null;
-  }
-
-  document.getElementById('customSelectAllBtn').addEventListener('click', function(){
-    getActiveProject().tiles.forEach(function(t){ customPending[t.id] = true; });
-    renderCustomPickList();
-  });
-  document.getElementById('customSelectNoneBtn').addEventListener('click', function(){
-    getActiveProject().tiles.forEach(function(t){ customPending[t.id] = false; });
-    renderCustomPickList();
-  });
-  document.getElementById('customCancelBtn').addEventListener('click', closeCustomPicker);
-  customOverlay.addEventListener('click', function(ev){ if(ev.target === customOverlay) closeCustomPicker(); });
-  document.getElementById('customSaveBtn').addEventListener('click', function(){
-    if(!customPending) return;
-    var project = getActiveProject();
-    var count = 0;
-    project.tiles.forEach(function(t){
-      if(customPending[t.id]){ t.inCustom = true; count++; } else { delete t.inCustom; }
-    });
-    saveData();
-    closeCustomPicker();
-    renderMain();
-    showToast(count === 0 ? 'Custom group cleared' : 'Custom group saved (' + count + ' tile' + (count === 1 ? '' : 's') + ')');
   });
 
   // ---------- tile notes ----------
@@ -3153,6 +3041,9 @@
   document.addEventListener('mousedown', function(){ pageDragActive = false; }, true);
   document.addEventListener('dragstart', function(){ pageDragActive = true; }, true);
   document.addEventListener('dragend', function(){ pageDragActive = false; }, true);
+  // A drop can re-render the very element that was being dragged, and then its dragend never fires, which
+  // would leave this flag stuck on and make the next link dragged in from a browser look like an internal drag.
+  document.addEventListener('drop', function(){ setTimeout(function(){ pageDragActive = false; }, 0); });
 
   function isUrlDrag(ev){
     if(pageDragActive || draggedTileId || draggedProjectId) return false;

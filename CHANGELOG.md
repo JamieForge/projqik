@@ -1,11 +1,16 @@
 # ProjQik changelog
 
+## 3.2.2
+- Version number corrected to 3.2.2. No other changes from 3.2.1.
+
 ## 3.2.1
-- Restored Mac disk images: downloads are .dmg files again (one for Apple Silicon Macs, one for
-  Intel Macs), matching 3.1.0.
-- Download file names are now plain language — no guessing which file is yours:
-  ProjQik-3.2.1-Mac-AppleSilicon.dmg, ProjQik-3.2.1-Mac-Intel.dmg, ProjQik-3.2.1-Windows.exe,
-  ProjQik-3.2.1-Linux.AppImage.
+- The clone button now replaces "Copy path" on every tile (the two did not both need to be there).
+- Custom tab is now quick: click the star on any tile, or drag a tile (by its grip) onto the Custom tab,
+  to add it; click the star again to take it out. The "Choose tiles..." dialog is gone. A cloned tile does
+  not automatically join Custom - star it if it belongs there.
+- Removed "Choose from Finder..." from the tile icon picker (it was a misunderstanding). "Open folder"
+  and "Import folder..." in the icon library are unchanged.
+- Fixed: after dropping a tile on a tab, a web link dragged in from a browser could be ignored.
 
 ## 3.2.0
 - Launch splash screen: ProjQik opens with a short cinematic welcome (Freedom Forge AI credit, the
